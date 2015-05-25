@@ -59,18 +59,24 @@ instance MonadWidget t m => Attributes m (Dynamic t AttributeMap) where
       imapM_ (elementSetAttribute e) newAttrs --TODO: avoid re-setting unchanged attributes; possibly do the compare using Align in haskell
 
 buildEmptyElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m HTMLElement
-buildEmptyElement elementTag attrs = do
+buildEmptyElement elementTag attrs = buildEmptyElementNS elementTag "" attrs
+
+buildEmptyElementNS :: (MonadWidget t m, Attributes m attrs) => String -> String -> attrs -> m HTMLElement
+buildEmptyElementNS elementTag nameSpace attrs = do
   doc <- askDocument
-  p <- askParent
-  Just e <- liftIO $ documentCreateElement doc elementTag
+  p   <- askParent
+  Just e <- liftIO $ documentCreateElementNS doc elementTag nameSpace
   addAttributes attrs e
   _ <- liftIO $ nodeAppendChild p $ Just e
   return $ castToHTMLElement e
 
 -- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
 buildElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m a -> m (HTMLElement, a)
-buildElement elementTag attrs child = do
-  e <- buildEmptyElement elementTag attrs
+buildElement elementTag attrs child = buildElementNS elementTag "" attrs child
+
+buildElementNS :: (MonadWidget t m, Attributes m attrs) => String -> String -> attrs -> m a -> m (HTMLElement, a)
+buildElementNS elementTag nameSpace attrs child = do
+  e <- buildEmptyElementNS elementTag nameSpace attrs
   result <- subWidget (toNode e) child
   return (e, result)
 
@@ -400,40 +406,67 @@ wrapElement e = do
   return $ El e clicked keypress scrolled
 
 elDynAttr' :: forall t m a. MonadWidget t m => String -> Dynamic t (Map String String) -> m a -> m (El t, a)
-elDynAttr' elementTag attrs child = do
-  (e, result) <- buildElement elementTag attrs child
+elDynAttr' elementTag attrs child = elDynAttrNS' elementTag "" attrs child
+
+elDynAttrNS' :: forall t m a. MonadWidget t m => String -> String -> Dynamic t (Map String String) -> m a -> m (El t, a)
+elDynAttrNS' elementTag nameSpace attrs child = do
+  (e, result) <- buildElementNS elementTag nameSpace attrs child
   e' <- wrapElement e
   return (e', result)
 
 {-# INLINABLE elAttr #-}
 elAttr :: forall t m a. MonadWidget t m => String -> Map String String -> m a -> m a
-elAttr elementTag attrs child = do
-  (_, result) <- buildElement elementTag attrs child
+elAttr elementTag attrs child = elAttrNS elementTag "" attrs child
+
+{-# INLINABLE elAttrNS #-}
+elAttrNS :: forall t m a. MonadWidget t m => String -> String -> Map String String -> m a -> m a
+elAttrNS elementTag nameSpace attrs child = do
+  (_, result) <- buildElementNS elementTag nameSpace attrs child
   return result
 
 {-# INLINABLE el' #-}
 el' :: forall t m a. MonadWidget t m => String -> m a -> m (El t, a)
-el' elementTag child = elAttr' elementTag (Map.empty :: AttributeMap) child
+el' elementTag child = elNS' elementTag "" child
+
+{-# INLINABLE elNS' #-}
+elNS' :: forall t m a. MonadWidget t m => String -> String -> m a -> m (El t, a)
+elNS' elementTag nameSpace child =
+  elAttrNS' elementTag nameSpace (Map.empty :: AttributeMap) child
 
 {-# INLINABLE elAttr' #-}
 elAttr' :: forall t m a. MonadWidget t m => String -> Map String String -> m a -> m (El t, a)
-elAttr' elementTag attrs child = do
-  (e, result) <- buildElement elementTag attrs child
+elAttr' elementTag attrs child = elAttrNS' elementTag "" attrs child
+
+{-# INLINABLE elAttrNS' #-}
+elAttrNS' :: forall t m a. MonadWidget t m => String -> String -> Map String String -> m a -> m (El t, a)
+elAttrNS' elementTag nameSpace attrs child = do
+  (e, result) <- buildElementNS elementTag nameSpace attrs child
   e' <- wrapElement e
   return (e', result)
 
 {-# INLINABLE elDynAttr #-}
 elDynAttr :: forall t m a. MonadWidget t m => String -> Dynamic t (Map String String) -> m a -> m a
-elDynAttr elementTag attrs child = do
-  (_, result) <- buildElement elementTag attrs child
+elDynAttr elementTag attrs child = elDynAttrNS elementTag "" attrs child
+
+{-# INLINABLE elDynAttrNS #-}
+elDynAttrNS :: forall t m a. MonadWidget t m => String -> String -> Dynamic t (Map String String) -> m a -> m a
+elDynAttrNS elementTag nameSpace attrs child = do
+  (_, result) <- buildElementNS elementTag nameSpace attrs child
   return result
 
 {-# INLINABLE el #-}
 el :: forall t m a. MonadWidget t m => String -> m a -> m a
-el elementTag child = elAttr elementTag Map.empty child
+el elementTag child = elNS elementTag "" child
+
+{-# INLINABLE elNS #-}
+elNS :: forall t m a. MonadWidget t m => String -> String -> m a -> m a
+elNS elementTag nameSpace child = elAttrNS elementTag nameSpace Map.empty child
 
 elClass :: forall t m a. MonadWidget t m => String -> String -> m a -> m a
-elClass elementTag c child = elAttr elementTag ("class" =: c) child
+elClass elementTag c child = elNSClass elementTag "" c child
+
+elNSClass :: forall t m a. MonadWidget t m => String -> String -> String -> m a -> m a
+elNSClass elementTag nameSpace c child = elAttrNS elementTag nameSpace ("class" =: c) child
 
 --------------------------------------------------------------------------------
 -- Copied and pasted from Reflex.Widget.Class
