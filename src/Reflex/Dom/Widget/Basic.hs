@@ -426,7 +426,7 @@ elAttrNS elementTag nameSpace attrs child = do
 
 {-# INLINABLE el' #-}
 el' :: forall t m a. MonadWidget t m => String -> m a -> m (El t, a)
-el' elementTag child = elNS' elementTag "" child
+el' elementTag child = elAttr' elementTag (Map.empty :: AttributeMap) child
 
 {-# INLINABLE elNS' #-}
 elNS' :: forall t m a. MonadWidget t m => String -> String -> m a -> m (El t, a)
@@ -435,7 +435,11 @@ elNS' elementTag nameSpace child =
 
 {-# INLINABLE elAttr' #-}
 elAttr' :: forall t m a. MonadWidget t m => String -> Map String String -> m a -> m (El t, a)
-elAttr' elementTag attrs child = elAttrNS' elementTag "" attrs child
+elAttr' elementTag attrs child = do
+  (e, result) <- buildElement elementTag attrs child
+  e' <- wrapElement e
+  return (e', result)
+
 
 {-# INLINABLE elAttrNS' #-}
 elAttrNS' :: forall t m a. MonadWidget t m => String -> String -> Map String String -> m a -> m (El t, a)
@@ -446,7 +450,10 @@ elAttrNS' elementTag nameSpace attrs child = do
 
 {-# INLINABLE elDynAttr #-}
 elDynAttr :: forall t m a. MonadWidget t m => String -> Dynamic t (Map String String) -> m a -> m a
-elDynAttr elementTag attrs child = elDynAttrNS elementTag "" attrs child
+elDynAttr elementTag attrs child = do
+  (_, result) <- buildElement elementTag attrs child
+  return result
+
 
 {-# INLINABLE elDynAttrNS #-}
 elDynAttrNS :: forall t m a. MonadWidget t m => String -> String -> Dynamic t (Map String String) -> m a -> m a
@@ -456,14 +463,14 @@ elDynAttrNS elementTag nameSpace attrs child = do
 
 {-# INLINABLE el #-}
 el :: forall t m a. MonadWidget t m => String -> m a -> m a
-el elementTag child = elNS elementTag "" child
+el elementTag child = elAttr elementTag Map.empty child
 
 {-# INLINABLE elNS #-}
 elNS :: forall t m a. MonadWidget t m => String -> String -> m a -> m a
 elNS elementTag nameSpace child = elAttrNS elementTag nameSpace Map.empty child
 
 elClass :: forall t m a. MonadWidget t m => String -> String -> m a -> m a
-elClass elementTag c child = elNSClass elementTag "" c child
+elClass elementTag c child = elAttr elementTag ("class" =: c) child
 
 elNSClass :: forall t m a. MonadWidget t m => String -> String -> String -> m a -> m a
 elNSClass elementTag nameSpace c child = elAttrNS elementTag nameSpace ("class" =: c) child
