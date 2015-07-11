@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, LambdaCase, ConstraintKinds, TypeFamilies, FlexibleContexts, MultiParamTypeClasses, FlexibleInstances, RecursiveDo #-}
+{-# LANGUAGE ScopedTypeVariables, LambdaCase, ConstraintKinds, TypeFamilies, FlexibleContexts, MultiParamTypeClasses, FlexibleInstances, RecursiveDo, TemplateHaskell #-}
 
 module Reflex.Dom.Widget.Basic where
 
@@ -13,6 +13,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Default
 import Data.Dependent.Sum (DSum (..))
 import Data.Foldable
 import Data.Traversable
@@ -58,7 +59,8 @@ instance MonadWidget t m => Attributes m (Dynamic t AttributeMap) where
       forM_ (Set.toList $ oldAttrs `Set.difference` Map.keysSet newAttrs) $ elementRemoveAttribute e
       imapM_ (elementSetAttribute e) newAttrs --TODO: avoid re-setting unchanged attributes; possibly do the compare using Align in haskell
 
-buildEmptyElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m HTMLElement
+buildEmptyElement :: (MonadWidget t m, Attributes m attrs)
+                  => String -> attrs -> m HTMLElement
 buildEmptyElement elementTag attrs = do
   doc <- askDocument
   p <- askParent
@@ -67,10 +69,32 @@ buildEmptyElement elementTag attrs = do
   _ <- liftIO $ nodeAppendChild p $ Just e
   return $ castToHTMLElement e
 
+buildEmptyElementNS :: (MonadWidget t m, Attributes m attrs)
+                  => String -> Maybe String -> attrs -> m HTMLElement
+buildEmptyElementNS elementTag nameSpace attrs = do
+  doc <- askDocument
+  p <- askParent
+  Just e <- liftIO $ maybe
+                     (documentCreateElement doc elementTag)
+                     (documentCreateElementNS doc elementTag)
+                     nameSpace
+  addAttributes attrs e
+  _ <- liftIO $ nodeAppendChild p $ Just e
+  return $ castToHTMLElement e
+
 -- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
-buildElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m a -> m (HTMLElement, a)
+buildElement :: (MonadWidget t m, Attributes m attrs)
+             => String -> attrs -> m a -> m (HTMLElement, a)
 buildElement elementTag attrs child = do
   e <- buildEmptyElement elementTag attrs
+  result <- subWidget (toNode e) child
+  return (e, result)
+
+-- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
+buildElementNS :: (MonadWidget t m, Attributes m attrs)
+             => String -> Maybe String -> attrs -> m a -> m (HTMLElement, a)
+buildElementNS elementTag nameSpace attrs child = do
+  e <- buildEmptyElementNS elementTag nameSpace attrs
   result <- subWidget (toNode e) child
   return (e, result)
 
@@ -399,7 +423,60 @@ wrapElement e = do
   scrolled <- wrapDomEvent e elementOnscroll $ liftIO $ elementGetScrollTop e
   return $ El e clicked keypress scrolled
 
-elDynAttr' :: forall t m a. MonadWidget t m => String -> Dynamic t (Map String String) -> m a -> m (El t, a)
+-- data CanBeDynamic t = IsStatic (Map String String)
+--                     | IsDynamic (Dynamic t (Map String String))
+-- makePrisms ''CanBeDynamic
+
+
+data ElConfig a = ElConfig {
+    _elConfig_attrs     :: a
+  , _elConfig_namespace :: Maybe String
+}
+makeLenses ''ElConfig
+
+defElConfig :: ElConfig (Map String String)
+defElConfig = ElConfig Map.empty Nothing
+
+instance Monoid a => Default (ElConfig a) where
+  def = ElConfig mempty Nothing
+
+--el = elC defElConfig
+--
+elC :: (MonadWidget t m, Attributes m a) => String -> ElConfig a -> m a -> m a
+elC elementTag config child = do
+  (e,result) <- buildElementNS elementTag (config^.elConfig_namespace)
+                (config^.elConfig_attrs) child
+  return result
+--
+-- elC :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
+-- elC elementTag config child = snd <$> case config^.elConfig_attrs of
+--   IsStatic attrs ->
+--     buildElement elementTag (config^.elConfig_attrs._IsStatic) child
+--   IsDynamic attrs ->
+--     buildElement elementTag attrs child
+--
+-- elC' :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
+-- elC' elementTag config child = do
+--   (e,result) <- case config^.elConfig_attrs of
+--     IsStatic attrs ->
+--       buildElement elementTag attrs child
+--     IsDynamic attrs ->
+--       buildElement elementTag attrs child
+-- elC' :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
+-- elC' elementTag config child = do
+--
+--     buildElement elementTag attrs child
+  --
+  -- case _elConfig_attrs attrs of
+  --                 IsStatic a -> buildElement' a
+  --                 IsDynamic a -> buildElement' a
+  --                 where buildElement' attrs = do
+  --                           (e, result) <- buildElement elementTag attrs' child
+  --                           e' <- wrapElement e
+  --                           return (e', result)
+
+elDynAttr' :: forall t m a. MonadWidget t m => String
+           -> Dynamic t (Map String String) -> m a -> m (El t, a)
 elDynAttr' elementTag attrs child = do
   (e, result) <- buildElement elementTag attrs child
   e' <- wrapElement e
@@ -539,7 +616,7 @@ tabDisplay ulClass activeClass tabItems = do
     _ <- listWithKey dTabs (\k dTab -> do
       dAttrs <- mapDyn (\sel -> do
         let t1 = listToMaybe $ Map.keys tabItems
-        if sel == Just k || (sel == Nothing && t1 == Just k) then Map.empty else Map.singleton "style" "display:none;") dCurrentTab 
+        if sel == Just k || (sel == Nothing && t1 == Just k) then Map.empty else Map.singleton "style" "display:none;") dCurrentTab
       elDynAttr "div" dAttrs $ dyn =<< mapDyn snd dTab)
     return ()
   where
