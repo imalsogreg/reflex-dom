@@ -1,5 +1,5 @@
 Name: reflex-dom
-Version: 0.1.1
+Version: 0.1.2
 Synopsis: Glitch-free Functional Reactive Web Apps
 Description: Reflex-DOM is a Functional Reactive web framework based on the Reflex FRP engine
 License: BSD3
@@ -36,7 +36,9 @@ library
     bytestring == 0.10.*,
     data-default == 0.5.*,
     aeson == 0.8.*,
-    time == 1.5.*
+    time == 1.5.*,
+    exception-transformers == 0.4.*,
+    directory == 1.2.*
 
   if impl(ghcjs)
     hs-source-dirs: src-ghcjs
