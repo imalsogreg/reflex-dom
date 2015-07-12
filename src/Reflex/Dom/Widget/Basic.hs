@@ -34,6 +34,10 @@ import Data.Align
 
 import Data.Maybe
 
+import Debug.Trace
+
+traceShow' a = traceShow a a
+
 type AttributeMap = Map String String
 
 data El t
@@ -70,17 +74,15 @@ buildEmptyElement elementTag attrs = do
   return $ castToHTMLElement e
 
 buildEmptyElementNS :: (MonadWidget t m, Attributes m attrs)
-                  => String -> Maybe String -> attrs -> m HTMLElement
+                  => String -> String -> attrs -> m Element
 buildEmptyElementNS elementTag nameSpace attrs = do
   doc <- askDocument
-  p <- askParent
-  Just e <- liftIO $ maybe
-                     (documentCreateElement doc elementTag)
-                     (documentCreateElementNS doc elementTag)
-                     nameSpace
+  p <- trace "Askparent" askParent
+  Just e <- liftIO $ documentCreateElementNS doc (traceShow' nameSpace) (traceShow' elementTag)
   addAttributes attrs e
   _ <- liftIO $ nodeAppendChild p $ Just e
-  return $ castToHTMLElement e
+  return $ castToElement e
+
 
 -- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
 buildElement :: (MonadWidget t m, Attributes m attrs)
@@ -92,7 +94,7 @@ buildElement elementTag attrs child = do
 
 -- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
 buildElementNS :: (MonadWidget t m, Attributes m attrs)
-             => String -> Maybe String -> attrs -> m a -> m (HTMLElement, a)
+           => String -> String -> attrs -> m a -> m (Element, a)
 buildElementNS elementTag nameSpace attrs child = do
   e <- buildEmptyElementNS elementTag nameSpace attrs
   result <- subWidget (toNode e) child
@@ -438,14 +440,15 @@ defElConfig :: ElConfig (Map String String)
 defElConfig = ElConfig Map.empty Nothing
 
 instance Monoid a => Default (ElConfig a) where
-  def = ElConfig mempty Nothing
+   def = ElConfig mempty Nothing
 
 --el = elC defElConfig
 --
-elC :: (MonadWidget t m, Attributes m a) => String -> ElConfig a -> m a -> m a
-elC elementTag config child = do
-  (e,result) <- buildElementNS elementTag (config^.elConfig_namespace)
-                (config^.elConfig_attrs) child
+elC :: (MonadWidget t m, Attributes m attrs) => ElConfig attrs -> String -> m a -> m a
+elC config elementTag child = do
+  let (Just ns) = config^.elConfig_namespace
+  (e,result) <- buildElementNS elementTag (ns) (config^.elConfig_attrs) child
+
   return result
 --
 -- elC :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
