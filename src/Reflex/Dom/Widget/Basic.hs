@@ -448,8 +448,14 @@ elC :: (MonadWidget t m, Attributes m attrs) => ElConfig attrs -> String -> m a 
 elC config elementTag child = do
   let (Just ns) = config^.elConfig_namespace
   (e,result) <- buildElementNS elementTag (ns) (config^.elConfig_attrs) child
-
   return result
+
+elC' :: (MonadWidget t m, Attributes m attrs) => ElConfig attrs -> String -> m a -> m (El t, a)
+elC' config elementTag child = do
+  let (Just ns) = config^.elConfig_namespace
+  (e,result) <- buildElementNS elementTag (ns) (config^.elConfig_attrs) child
+  e' <- wrapElement e
+  return (e',result)
 --
 -- elC :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
 -- elC elementTag config child = snd <$> case config^.elConfig_attrs of
@@ -528,15 +534,17 @@ simpleList xs mkChild = mapDyn (map snd . Map.toList) =<< flip list mkChild =<< 
 elDynHtml' :: MonadWidget t m => String -> Dynamic t String -> m (El t)
 elDynHtml' elementTag html = do
   e <- buildEmptyElement elementTag (Map.empty :: Map String String)
-  schedulePostBuild $ liftIO . htmlElementSetInnerHTML e =<< sample (current html)
-  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML e) $ updated html
+  s <- sample (current html)
+  --schedulePostBuild (liftIO $ htmlElementSetInnerHTML (castToHTMLElement e) s)
+  schedulePostBuild $ liftIO . htmlElementSetInnerHTML (castToHTMLElement e) =<< sample (current html)
+  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML (castToHTMLElement e)) $ updated html
   wrapElement e
 
 elDynHtmlAttr' :: MonadWidget t m => String -> Map String String -> Dynamic t String -> m (El t)
 elDynHtmlAttr' elementTag attrs html = do
   e <- buildEmptyElement elementTag attrs
-  schedulePostBuild $ liftIO . htmlElementSetInnerHTML e =<< sample (current html)
-  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML e) $ updated html
+  schedulePostBuild $ liftIO . htmlElementSetInnerHTML (castToHTMLElement e) =<< sample (current html)
+  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML (castToHTMLElement e)) $ updated html
   wrapElement e
 
 {-
