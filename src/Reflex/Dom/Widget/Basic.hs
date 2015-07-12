@@ -41,7 +41,7 @@ traceShow' a = traceShow a a
 type AttributeMap = Map String String
 
 data El t
-  = El { _el_element :: HTMLElement
+  = El { _el_element :: Element
        , _el_clicked :: Event t ()
        , _el_keypress :: Event t Int
        , _el_scrolled :: Event t Int
@@ -64,14 +64,14 @@ instance MonadWidget t m => Attributes m (Dynamic t AttributeMap) where
       imapM_ (elementSetAttribute e) newAttrs --TODO: avoid re-setting unchanged attributes; possibly do the compare using Align in haskell
 
 buildEmptyElement :: (MonadWidget t m, Attributes m attrs)
-                  => String -> attrs -> m HTMLElement
+                  => String -> attrs -> m Element
 buildEmptyElement elementTag attrs = do
   doc <- askDocument
   p <- askParent
   Just e <- liftIO $ documentCreateElement doc elementTag
   addAttributes attrs e
   _ <- liftIO $ nodeAppendChild p $ Just e
-  return $ castToHTMLElement e
+  return $ e
 
 buildEmptyElementNS :: (MonadWidget t m, Attributes m attrs)
                   => String -> String -> attrs -> m Element
@@ -81,12 +81,12 @@ buildEmptyElementNS elementTag nameSpace attrs = do
   Just e <- liftIO $ documentCreateElementNS doc (traceShow' nameSpace) (traceShow' elementTag)
   addAttributes attrs e
   _ <- liftIO $ nodeAppendChild p $ Just e
-  return $ castToElement e
+  return $ e
 
 
 -- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
 buildElement :: (MonadWidget t m, Attributes m attrs)
-             => String -> attrs -> m a -> m (HTMLElement, a)
+             => String -> attrs -> m a -> m (Element, a)
 buildElement elementTag attrs child = do
   e <- buildEmptyElement elementTag attrs
   result <- subWidget (toNode e) child
@@ -418,7 +418,7 @@ getKeyEvent = do
       if charCode /= 0 then return charCode else
         uiEventGetKeyCode e
 
-wrapElement :: (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => HTMLElement -> m (El t)
+wrapElement :: (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => Element -> m (El t)
 wrapElement e = do
   clicked <- wrapDomEvent e elementOnclick (return ())
   keypress <- wrapDomEvent e elementOnkeypress getKeyEvent
@@ -631,7 +631,7 @@ tabDisplay ulClass activeClass tabItems = do
         return $ fmap (const k) (_link_clicked a)
 
 -- | Place an element into the DOM and wrap it with Reflex event handlers.  Note: undefined behavior may result if the element is placed multiple times, removed from the DOM after being placed, or in other situations.  Don't use this unless you understand the internals of MonadWidget.
-unsafePlaceElement :: MonadWidget t m => HTMLElement -> m (El t)
+unsafePlaceElement :: MonadWidget t m => Element -> m (El t)
 unsafePlaceElement e = do
   p <- askParent
   _ <- liftIO $ nodeAppendChild p $ Just e
