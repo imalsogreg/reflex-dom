@@ -455,7 +455,7 @@ elC' config elementTag child = do
   let (Just ns) = config^.elConfig_namespace
   (e,result) <- buildElementNS elementTag (ns) (config^.elConfig_attrs) child
   e' <- wrapElement e
-  return (e',result)
+  trace "Returning from elC'" $ return (e',result)
 --
 -- elC :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
 -- elC elementTag config child = snd <$> case config^.elConfig_attrs of
