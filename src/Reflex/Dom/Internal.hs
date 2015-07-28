@@ -230,7 +230,7 @@ deriving instance MonadReflexCreateTrigger t m => MonadReflexCreateTrigger t (Wi
 instance MonadReflexHost t m => MonadReflexHost t (WithWebView m) where
   fireEventsAndRead dm a = lift $ fireEventsAndRead dm a
   subscribeEvent = lift . subscribeEvent
-  runFrame = lift . runFrame
+  --runFrame = lift . runFrame
   runHostFrame = lift . runHostFrame
 
 runWithWebView :: WithWebView m a -> WebView -> m a
@@ -258,4 +258,3 @@ attachWidget rootElement wv w = runSpiderHost $ flip runWithWebView wv $ do --TO
   return result
 
 --type MonadWidget t h m = (t ~ Spider, h ~ Gui Spider SpiderHost (HostFrame Spider), m ~ Widget t h, Monad h, MonadHold t h, HasDocument h, MonadSample t h, MonadRef h, MonadIO h, Functor (Event t), Functor h, Reflex t) -- Locking down these types seems to help a little in GHCJS, but not really in GHC
-
