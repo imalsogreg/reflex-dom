@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
@@ -11,11 +12,14 @@ import Data.Monoid
 import Data.Bool
 import Data.Colour
 import Data.Colour.SRGB
+import Data.Time
+import Data.Functor
 import Data.Maybe
 import Data.List
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
+import GHC.Word
 import Lucid.Svg
 import qualified Lucid.Svg as L
 import qualified Lucid.Svg.Attributes as A
@@ -38,10 +42,15 @@ svg :: ElConfig a -> ElConfig a
 svg e = e {_elConfig_namespace = Just svgNS}
 
 elAttrSvg :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m a -> m a
-elAttrSvg string ats child = let cfg = defElConfig { _elConfig_namespace = Just svgNS
+elAttrSvg string ats child = do
+  (_,c) <- elAttrSvg' string ats child
+  return c
+
+elAttrSvg' :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m a -> m (El t, a)
+elAttrSvg' string ats child = let cfg = defElConfig { _elConfig_namespace = Just svgNS
                                                    , _elConfig_attrs     = ats
                                                    }
-                             in  elC cfg string child
+                              in elC' cfg string child
 
 -- Attribute-building helper for svg's
 circCfg ats =
@@ -117,7 +126,7 @@ s = id
 
 
 main :: IO ()
-main = mainWidget $ do
+main = getCurrentTime >>= \t0 -> mainWidget $ do
   let head0 = 8
       stem0 = 2.8
       numSheets0 = 2
@@ -177,7 +186,7 @@ main = mainWidget $ do
                                  (fromMaybe g0 $ readMay $(unqDyn [| value g |]))
                                  (fromMaybe b0 $ readMay $(unqDyn [| value b |]))
     } |])
-  logoWidget logoConfig
+  logoWidget t0 logoConfig
   display logoConfig
   return ()
 
@@ -194,8 +203,8 @@ data LogoConfig
 
 -- combineDynWith3 :: (a -> b -> c -> d) -> Dynamic t m a -> Dynamic t m b -> Dynamic t m c -> m (Dynamic t m d)
 
-logoWidget :: MonadWidget t m => Dynamic t LogoConfig -> m ()
-logoWidget l = do
+logoWidget :: MonadWidget t m => UTCTime -> Dynamic t LogoConfig -> m ()
+logoWidget t0 l = do
 
   n <- forDyn l (_logoConfig_head)
   -- m <- forDyn l (show . _logoConfig_stem)
@@ -219,6 +228,9 @@ logoWidget l = do
 
     elAttrSvg "circle" cAtts  (return ())
     elAttrSvg "circle" cAtts' (return ())
+
+    tics <- tickLossy 0.1 t0
+    zipWithM (letterWidget (tics $> ())) "Hello Ryan" [20,50..400]
 
   --sheetIndList <- forDyn l ((\n -> [0..n-1]) . _logoConfig_numSheets) -- :: Dynamic t [Int]
   --actions <- forDyn sheetIndList (\ns -> mapM (text . show) ns)  -- :: Dynamic t (m ())
@@ -260,3 +272,16 @@ logoWidget l = do
 --   ats <- forDyn l ( ("cx" =: show (n*100) <>) . (s "r" =:) . show . _logoConfig_head)
 --   svgTag $ elAttrSvg "circle" ats (return ())
 
+letterWidget :: MonadWidget t m => Event t () -> Char -> Double -> m ()
+letterWidget tics c x = mdo
+
+  let dimmings = tics                         $> (* (0.95 :: Double))
+      hits     = (domEvent Mouseenter letter) $> (const (255 :: Double))
+
+  tBrightness <- foldDyn ($) 50 (leftmost [dimmings, hits])
+  tAttrs <- forDyn tBrightness $ \b -> s "x" =: show x <> s "y" =: s "40" <> s "stroke" =: sRGB24show (sRGB24 0 (floor b) (0) :: Colour Double) <> "font-size" =: "40px"
+
+  (letter,_) <- elAttrSvg' "text" tAttrs (text [c])
+  display tBrightness
+
+  return ()

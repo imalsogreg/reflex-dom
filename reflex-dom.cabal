@@ -76,4 +76,4 @@ library
 executable test
   hs-source-dirs: exec
   main-is: Main.hs
-  build-depends: base, colour, containers, data-default, reflex, reflex-dom >= 0.1.3, lucid-svg, safe, text
+  build-depends: base, colour, containers, data-default, reflex, reflex-dom >= 0.1.3, lucid-svg, safe, text, time
