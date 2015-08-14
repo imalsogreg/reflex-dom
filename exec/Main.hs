@@ -140,26 +140,26 @@ main = getCurrentTime >>= \t0 -> mainWidget $ do
         text t
         return result
       widthStyle = "style" =: "width:30em"
-  head <- label "Head size" $ do
+  head <- label "Size" $ do
     textInput $ def & textInputConfig_initialValue .~ show head0
                     & textInputConfig_inputType .~ "range"
                     & attributes .~ constDyn (widthStyle <> "min" =: "2" <> "max" =: "20" <> "step" =: "0.01")
   stem <- label "Stem length" $ do
     textInput $ def & textInputConfig_initialValue .~ show stem0
                     & textInputConfig_inputType .~ "range"
-                    & attributes .~ constDyn (widthStyle <> "min" =: "1" <> "max" =: "5" <> "step" =: "0.01")
+                    & attributes .~ constDyn (widthStyle <> "min" =: "1" <> "max" =: "5" <> "step" =: "0.01" <> "display" =: "none")
   numSheets <- label "Number of sheets" $ do
     textInput $ def & textInputConfig_initialValue .~ show gap0
                     & textInputConfig_inputType .~ "range"
-                    & attributes .~ constDyn (widthStyle <> "min" =: "0" <> "max" =: "6" <> "step" =: "1")
+                    & attributes .~ constDyn (widthStyle <> "min" =: "0" <> "max" =: "6" <> "step" =: "1" <> "display" =: "none")
   gap <- label "Gap width" $ do
     textInput $ def & textInputConfig_initialValue .~ show gap0
                     & textInputConfig_inputType .~ "range"
                     & attributes .~ constDyn (widthStyle <> "min" =: "0" <> "max" =: "4" <> "step" =: "0.01")
-  sheet <- label "Sheet width" $ do
+  sheet <- label "Widht" $ do
     textInput $ def & textInputConfig_initialValue .~ show sheet0
                     & textInputConfig_inputType .~ "range"
-                    & attributes .~ constDyn (widthStyle <> "min" =: "0" <> "max" =: "4" <> "step" =: "0.01")
+                    & attributes .~ constDyn (widthStyle <> "min" =: "0" <> "max" =: "4" <> "step" =: "0.01" <> "display" =: "none")
   el "div" $ text "Color:"
   r <- label "Red" $ do
     textInput $ def & textInputConfig_initialValue .~ show r0
