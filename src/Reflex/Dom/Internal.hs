@@ -265,4 +265,3 @@ attachWidget rootElement wv w = runSpiderHost $ flip runWithWebView wv $ do --TO
   return result
 
 --type MonadWidget t h m = (t ~ Spider, h ~ Gui Spider SpiderHost (HostFrame Spider), m ~ Widget t h, Monad h, MonadHold t h, HasDocument h, MonadSample t h, MonadRef h, MonadIO h, Functor (Event t), Functor h, Reflex t) -- Locking down these types seems to help a little in GHCJS, but not really in GHC
-

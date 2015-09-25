@@ -13,6 +13,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Default
 import Data.Dependent.Sum (DSum (..))
 import Data.Foldable
 import Data.Traversable
@@ -36,10 +37,14 @@ import Data.Bitraversable
 import GHCJS.DOM.MouseEvent
 import Data.IORef
 
+import Debug.Trace
+
+traceShow' a = traceShow a a
+
 type AttributeMap = Map String String
 
 data El t
-  = El { _el_element :: HTMLElement
+  = El { _el_element :: Element
        , _el_events :: EventSelector t (WrapArg EventResult EventName)
        }
 
@@ -59,19 +64,40 @@ instance MonadWidget t m => Attributes m (Dynamic t AttributeMap) where
       forM_ (Set.toList $ oldAttrs `Set.difference` Map.keysSet newAttrs) $ elementRemoveAttribute e
       imapM_ (elementSetAttribute e) newAttrs --TODO: avoid re-setting unchanged attributes; possibly do the compare using Align in haskell
 
-buildEmptyElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m HTMLElement
+buildEmptyElement :: (MonadWidget t m, Attributes m attrs)
+                  => String -> attrs -> m Element
 buildEmptyElement elementTag attrs = do
   doc <- askDocument
   p <- askParent
   Just e <- liftIO $ documentCreateElement doc elementTag
   addAttributes attrs e
   _ <- liftIO $ nodeAppendChild p $ Just e
-  return $ castToHTMLElement e
+  return $ e
+
+buildEmptyElementNS :: (MonadWidget t m, Attributes m attrs)
+                  => String -> String -> attrs -> m Element
+buildEmptyElementNS elementTag nameSpace attrs = do
+  doc <- askDocument
+  p <- trace "Askparent" askParent
+  Just e <- liftIO $ documentCreateElementNS doc (traceShow' nameSpace) (traceShow' elementTag)
+  addAttributes attrs e
+  _ <- liftIO $ nodeAppendChild p $ Just e
+  return $ e
+
 
 -- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
-buildElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m a -> m (HTMLElement, a)
+buildElement :: (MonadWidget t m, Attributes m attrs)
+             => String -> attrs -> m a -> m (Element, a)
 buildElement elementTag attrs child = do
   e <- buildEmptyElement elementTag attrs
+  result <- subWidget (toNode e) child
+  return (e, result)
+
+-- We need to decide what type of attrs we've got statically, because it will often be a recursively defined value, in which case inspecting it will lead to a cycle
+buildElementNS :: (MonadWidget t m, Attributes m attrs)
+           => String -> String -> attrs -> m a -> m (Element, a)
+buildElementNS elementTag nameSpace attrs child = do
+  e <- buildEmptyElementNS elementTag nameSpace attrs
   result <- subWidget (toNode e) child
   return (e, result)
 
@@ -539,7 +565,10 @@ type family EventResultType (en :: EventTag) :: * where
   EventResultType 'DragstartTag = ()
   EventResultType 'DropTag = ()
 
-wrapDomEventsMaybe :: (Functor (Event t), IsElement e, MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => e -> (forall en. EventName en -> EventM (EventType en) e (Maybe (f en))) -> m (EventSelector t (WrapArg f EventName))
+wrapDomEventsMaybe :: (Functor (Event t), IsElement e, MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m)
+                   => e
+                   -> (forall en. EventName en -> EventM (EventType en) e (Maybe (f en)))
+                   -> m (EventSelector t (WrapArg f EventName))
 wrapDomEventsMaybe element handlers = do
   postGui <- askPostGui
   runWithActions <- askRunWithActions
@@ -566,7 +595,10 @@ getMouseEventCoords = do
   e <- event
   liftIO $ bisequence (mouseEventGetX e, mouseEventGetY e)
 
-defaultDomEventHandler :: IsElement e => e -> EventName en -> EventM (EventType en) e (Maybe (EventResult en))
+defaultDomEventHandler :: IsElement e
+                       => e
+                       -> EventName en
+                       -> EventM (EventType en) e (Maybe (EventResult en))
 defaultDomEventHandler e evt = liftM (Just . EventResult) $ case evt of
   Click -> return ()
   Dblclick -> return ()
@@ -590,12 +622,69 @@ defaultDomEventHandler e evt = liftM (Just . EventResult) $ case evt of
   Dragstart -> return ()
   Drop -> return ()
 
-wrapElement :: forall t h m. (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => HTMLElement -> m (El t)
+wrapElement :: forall t h m. (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m)
+            => Element -> m (El t)
 wrapElement e = do
   es <- wrapDomEventsMaybe e $ defaultDomEventHandler e
   return $ El e es
 
-elDynAttr' :: forall t m a. MonadWidget t m => String -> Dynamic t (Map String String) -> m a -> m (El t, a)
+
+data ElConfig a = ElConfig {
+    _elConfig_attrs     :: a
+  , _elConfig_namespace :: Maybe String
+}
+makeLenses ''ElConfig
+
+defElConfig :: ElConfig (Map String String)
+defElConfig = ElConfig Map.empty Nothing
+
+instance Monoid a => Default (ElConfig a) where
+   def = ElConfig mempty Nothing
+
+--el = elC defElConfig
+--
+elC :: (MonadWidget t m, Attributes m attrs) => ElConfig attrs -> String -> m a -> m a
+elC config elementTag child = do
+  let (Just ns) = config^.elConfig_namespace
+  (e,result) <- buildElementNS elementTag ns (config^.elConfig_attrs) child
+  return result
+
+elC' :: (MonadWidget t m, Attributes m attrs) => ElConfig attrs -> String -> m a -> m (El t, a)
+elC' config elementTag child = do
+  let (Just ns) = config^.elConfig_namespace
+  (e,result) <- buildElementNS elementTag ns (config^.elConfig_attrs) child
+  e' <- wrapElement e
+  trace "Returning from elC'" $ return (e',result)
+--
+-- elC :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
+-- elC elementTag config child = snd <$> case config^.elConfig_attrs of
+--   IsStatic attrs ->
+--     buildElement elementTag (config^.elConfig_attrs._IsStatic) child
+--   IsDynamic attrs ->
+--     buildElement elementTag attrs child
+--
+-- elC' :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
+-- elC' elementTag config child = do
+--   (e,result) <- case config^.elConfig_attrs of
+--     IsStatic attrs ->
+--       buildElement elementTag attrs child
+--     IsDynamic attrs ->
+--       buildElement elementTag attrs child
+-- elC' :: (MonadWidget t m, Attributes m a) => String -> ElConfig t -> m a -> m a
+-- elC' elementTag config child = do
+--
+--     buildElement elementTag attrs child
+  --
+  -- case _elConfig_attrs attrs of
+  --                 IsStatic a -> buildElement' a
+  --                 IsDynamic a -> buildElement' a
+  --                 where buildElement' attrs = do
+  --                           (e, result) <- buildElement elementTag attrs' child
+  --                           e' <- wrapElement e
+  --                           return (e', result)
+
+elDynAttr' :: forall t m a. MonadWidget t m => String
+           -> Dynamic t (Map String String) -> m a -> m (El t, a)
 elDynAttr' elementTag attrs child = do
   (e, result) <- buildElement elementTag attrs child
   e' <- wrapElement e
@@ -647,15 +736,17 @@ simpleList xs mkChild = mapDyn (map snd . Map.toList) =<< flip list mkChild =<< 
 elDynHtml' :: MonadWidget t m => String -> Dynamic t String -> m (El t)
 elDynHtml' elementTag html = do
   e <- buildEmptyElement elementTag (Map.empty :: Map String String)
-  schedulePostBuild $ liftIO . htmlElementSetInnerHTML e =<< sample (current html)
-  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML e) $ updated html
+  s <- sample (current html)
+  --schedulePostBuild (liftIO $ htmlElementSetInnerHTML (castToHTMLElement e) s)
+  schedulePostBuild $ liftIO . htmlElementSetInnerHTML (castToHTMLElement e) =<< sample (current html)
+  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML (castToHTMLElement e)) $ updated html
   wrapElement e
 
 elDynHtmlAttr' :: MonadWidget t m => String -> Map String String -> Dynamic t String -> m (El t)
 elDynHtmlAttr' elementTag attrs html = do
   e <- buildEmptyElement elementTag attrs
-  schedulePostBuild $ liftIO . htmlElementSetInnerHTML e =<< sample (current html)
-  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML e) $ updated html
+  schedulePostBuild $ liftIO . htmlElementSetInnerHTML (castToHTMLElement e) =<< sample (current html)
+  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML (castToHTMLElement e)) $ updated html
   wrapElement e
 
 data Link t
@@ -741,7 +832,7 @@ tabDisplay ulClass activeClass tabItems = do
     _ <- listWithKey dTabs (\k dTab -> do
       dAttrs <- mapDyn (\sel -> do
         let t1 = listToMaybe $ Map.keys tabItems
-        if sel == Just k || (sel == Nothing && t1 == Just k) then Map.empty else Map.singleton "style" "display:none;") dCurrentTab 
+        if sel == Just k || (sel == Nothing && t1 == Just k) then Map.empty else Map.singleton "style" "display:none;") dCurrentTab
       elDynAttr "div" dAttrs $ dyn =<< mapDyn snd dTab)
     return ()
   where
@@ -753,7 +844,7 @@ tabDisplay ulClass activeClass tabItems = do
         return $ fmap (const k) (_link_clicked a)
 
 -- | Place an element into the DOM and wrap it with Reflex event handlers.  Note: undefined behavior may result if the element is placed multiple times, removed from the DOM after being placed, or in other situations.  Don't use this unless you understand the internals of MonadWidget.
-unsafePlaceElement :: MonadWidget t m => HTMLElement -> m (El t)
+unsafePlaceElement :: MonadWidget t m => Element -> m (El t)
 unsafePlaceElement e = do
   p <- askParent
   _ <- liftIO $ nodeAppendChild p $ Just e
