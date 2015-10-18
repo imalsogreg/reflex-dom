@@ -13,7 +13,8 @@ import GHCJS.DOM.HTMLTextAreaElement
 import GHCJS.DOM.Element
 import GHCJS.DOM.HTMLSelectElement
 import GHCJS.DOM.EventM
-import GHCJS.DOM.UIEvent
+import GHCJS.DOM.File
+import GHCJS.DOM.FileList
 import Data.Monoid
 import Data.Map as Map
 import Control.Lens
@@ -35,11 +36,11 @@ data TextInput t
                }
 
 data TextInputConfig t
-    = TextInputConfig { _textInputConfig_inputType :: String
-                      , _textInputConfig_initialValue :: String
-                      , _textInputConfig_setValue :: Event t String
-                      , _textInputConfig_attributes :: Dynamic t (Map String String)
-                      }
+   = TextInputConfig { _textInputConfig_inputType :: String
+                     , _textInputConfig_initialValue :: String
+                     , _textInputConfig_setValue :: Event t String
+                     , _textInputConfig_attributes :: Dynamic t (Map String String)
+                     }
 
 instance Reflex t => Default (TextInputConfig t) where
   def = TextInputConfig { _textInputConfig_inputType = "text"
@@ -150,6 +151,29 @@ checkboxView dAttrs dValue = do
   performEvent_ $ fmap (\v -> liftIO $ htmlInputElementSetChecked e $! v) $ updated dValue
   return eClicked
 
+data FileInput t
+   = FileInput { _fileInput_value :: Dynamic t [File]
+               , _fileInput_element :: HTMLInputElement
+               }
+
+data FileInputConfig t
+   = FileInputConfig { _fileInputConfig_attributes :: Dynamic t (Map String String)
+                     }
+
+instance Reflex t => Default (FileInputConfig t) where
+  def = FileInputConfig { _fileInputConfig_attributes = constDyn mempty
+                        }
+
+fileInput :: MonadWidget t m => FileInputConfig t -> m (FileInput t)
+fileInput (FileInputConfig dAttrs) = do
+  e <- liftM castToHTMLInputElement $ buildEmptyElement "input" =<< mapDyn (Map.insert "type" "file") dAttrs
+  eChange <- wrapDomEvent e elementOnchange $ liftIO $ do
+    Just files <- htmlInputElementGetFiles e
+    len <- fileListGetLength files
+    mapM (liftM (fromMaybe (error "fileInput: fileListItem returned null")) . fileListItem files) $ init [0..len]
+  dValue <- holdDyn [] eChange
+  return $ FileInput dValue e
+
 data Dropdown t k
     = Dropdown { _dropdown_value :: Dynamic t k
                , _dropdown_change :: Event t k
@@ -198,10 +222,6 @@ liftM concat $ mapM makeLenses
   , ''Checkbox
   ]
 
-class HasAttributes a where
-  type Attrs a :: *
-  attributes :: Lens' a (Attrs a)
-
 instance HasAttributes (TextAreaConfig t) where
   type Attrs (TextAreaConfig t) = Dynamic t (Map String String)
   attributes = textAreaConfig_attributes
@@ -249,6 +269,10 @@ instance HasValue (TextArea t) where
 instance HasValue (TextInput t) where
   type Value (TextInput t) = Dynamic t String
   value = _textInput_value
+
+instance HasValue (FileInput t) where
+  type Value (FileInput t) = Dynamic t [File]
+  value = _fileInput_value
 
 instance HasValue (Dropdown t k) where
   type Value (Dropdown t k) = Dynamic t k
