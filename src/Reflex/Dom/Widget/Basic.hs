@@ -414,10 +414,10 @@ deleteBetweenInclusive s e = do
 -- Adapters
 --------------------------------------------------------------------------------
 
-wrapDomEvent :: (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => e -> (e -> EventM e event () -> IO (IO ())) -> EventM event e a -> m (Event t a)
+wrapDomEvent :: (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => e -> (e -> EventM event e () -> IO (IO ())) -> EventM event e a -> m (Event t a)
 wrapDomEvent element elementOnevent getValue = wrapDomEventMaybe element elementOnevent $ liftM Just getValue
 
-wrapDomEventMaybe :: (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => e -> (e -> EventM e event () -> IO (IO ())) -> EventM event e (Maybe a) -> m (Event t a)
+wrapDomEventMaybe :: (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => e -> (e -> EventM event e () -> IO (IO ())) -> EventM event e (Maybe a) -> m (Event t a)
 wrapDomEventMaybe element elementOnevent getValue = do
   postGui <- askPostGui
   runWithActions <- askRunWithActions
