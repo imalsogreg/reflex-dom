@@ -249,13 +249,14 @@ listHoldWithKey initialVals valsChanged mkChild = do
   (newChildren, newChildrenTriggerRef) <- newEventWithTriggerRef
 --  performEvent_ $ fmap (const $ return ()) newChildren --TODO: Get rid of this hack
   runWidget <- getRunWidget
+
   let buildChild df k v = runWidget df $ wrapChild k v
       wrapChild k v = do
         childStart <- text' ""
+        result <- mkChild k v -- $ Reflex.select childValChangedSelector $ Const2 k
 -- <<<<<<< HEAD
 --        result <- mkChild k v
 -- =======
-        result <- mkChild k v $ Reflex.select childValChangedSelector $ Const2 k
 -- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
         childEnd <- text' ""
         return (result, (childStart, childEnd))
