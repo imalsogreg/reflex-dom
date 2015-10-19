@@ -574,7 +574,7 @@ type family EventType en where
   EventType 'TouchendTag = TouchEvent
   EventType 'TouchcancelTag = TouchEvent
 
-onEventName :: IsElement e => EventName en -> e -> EventM e (EventType en) () -> IO (IO ())
+onEventName :: IsElement e => EventName en -> e -> EventM (EventType en) e () -> IO (IO ())
 onEventName en e = case en of
   Abort -> on e E.abort
   Blur -> on e E.blurEvent
@@ -683,7 +683,7 @@ wrapDomEventsMaybe element handlers = do
           unsubscribe
   return $! e
 
-getKeyEvent :: EventM e KeyboardEvent Int
+getKeyEvent :: EventM KeyboardEvent e Int
 getKeyEvent = do
   e <- event
   which <- getWhich e
@@ -692,12 +692,12 @@ getKeyEvent = do
     if charCode /= 0 then return charCode else
       getKeyCode e
 
-getMouseEventCoords :: EventM e MouseEvent (Int, Int)
+getMouseEventCoords :: EventM MouseEvent e (Int, Int)
 getMouseEventCoords = do
   e <- event
   bisequence (getX e, getY e)
 
-defaultDomEventHandler :: IsElement e => e -> EventName en -> EventM e (EventType en) (Maybe (EventResult en))
+defaultDomEventHandler :: IsElement e => e -> EventName en -> EventM (EventType en) e (Maybe (EventResult en))
 defaultDomEventHandler e evt = liftM (Just . EventResult) $ case evt of
   Click -> return ()
   Dblclick -> return ()
