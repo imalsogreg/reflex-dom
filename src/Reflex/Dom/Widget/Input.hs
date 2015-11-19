@@ -8,12 +8,13 @@ import Reflex.Dom.Widget.Basic
 
 import Reflex
 import Reflex.Host.Class
-import GHCJS.DOM.HTMLInputElement
-import GHCJS.DOM.HTMLTextAreaElement
+import GHCJS.DOM.HTMLInputElement as Input
+import GHCJS.DOM.HTMLTextAreaElement as TextArea
 import GHCJS.DOM.Element
-import GHCJS.DOM.HTMLSelectElement
+import GHCJS.DOM.HTMLSelectElement as Select
 import GHCJS.DOM.EventM
-import GHCJS.DOM.UIEvent
+import GHCJS.DOM.File
+import GHCJS.DOM.FileList
 import Data.Monoid
 import Data.Map as Map
 import Control.Lens
@@ -35,11 +36,11 @@ data TextInput t
                }
 
 data TextInputConfig t
-    = TextInputConfig { _textInputConfig_inputType :: String
-                      , _textInputConfig_initialValue :: String
-                      , _textInputConfig_setValue :: Event t String
-                      , _textInputConfig_attributes :: Dynamic t (Map String String)
-                      }
+   = TextInputConfig { _textInputConfig_inputType :: String
+                     , _textInputConfig_initialValue :: String
+                     , _textInputConfig_setValue :: Event t String
+                     , _textInputConfig_attributes :: Dynamic t (Map String String)
+                     }
 
 instance Reflex t => Default (TextInputConfig t) where
   def = TextInputConfig { _textInputConfig_inputType = "text"
@@ -51,21 +52,21 @@ instance Reflex t => Default (TextInputConfig t) where
 textInput :: MonadWidget t m => TextInputConfig t -> m (TextInput t)
 textInput (TextInputConfig inputType initial eSetValue dAttrs) = do
   e <- liftM castToHTMLInputElement $ buildEmptyElement "input" =<< mapDyn (Map.insert "type" inputType) dAttrs
-  liftIO $ htmlInputElementSetValue e initial
-  performEvent_ $ fmap (liftIO . htmlInputElementSetValue e) eSetValue
-  eChange <- wrapDomEvent e elementOninput $ liftIO $ htmlInputElementGetValue e
+  Input.setValue e $ Just initial
+  performEvent_ $ fmap (Input.setValue e . Just) eSetValue
+  eChange <- wrapDomEvent e (`on` input) $ fromMaybe "" <$> Input.getValue e
   postGui <- askPostGui
   runWithActions <- askRunWithActions
   eChangeFocus <- newEventWithTrigger $ \eChangeFocusTrigger -> do
-    unsubscribeOnblur <- liftIO $ elementOnblur e $ liftIO $ do
+    unsubscribeOnblur <- on e blurEvent $ liftIO $ do
       postGui $ runWithActions [eChangeFocusTrigger :=> False]
-    unsubscribeOnfocus <- liftIO $ elementOnfocus e $ liftIO $ do
+    unsubscribeOnfocus <- on e focusEvent $ liftIO $ do
       postGui $ runWithActions [eChangeFocusTrigger :=> True]
     return $ liftIO $ unsubscribeOnblur >> unsubscribeOnfocus
   dFocus <- holdDyn False eChangeFocus
-  eKeypress <- wrapDomEvent e elementOnkeypress getKeyEvent
-  eKeydown <- wrapDomEvent e elementOnkeydown getKeyEvent
-  eKeyup <- wrapDomEvent e elementOnkeyup getKeyEvent
+  eKeypress <- wrapDomEvent e (`on` keyPress) getKeyEvent
+  eKeydown <- wrapDomEvent e (`on` keyDown) getKeyEvent
+  eKeyup <- wrapDomEvent e (`on` keyUp) getKeyEvent
   dValue <- holdDyn initial $ leftmost [eSetValue, eChange]
   return $ TextInput dValue eChange eKeypress eKeydown eKeyup dFocus e
 
@@ -95,20 +96,20 @@ data TextArea t
 textArea :: MonadWidget t m => TextAreaConfig t -> m (TextArea t)
 textArea (TextAreaConfig initial eSet attrs) = do
   e <- liftM castToHTMLTextAreaElement $ buildEmptyElement "textarea" attrs
-  liftIO $ htmlTextAreaElementSetValue e initial
+  TextArea.setValue e $ Just initial
   postGui <- askPostGui
   runWithActions <- askRunWithActions
   eChangeFocus <- newEventWithTrigger $ \eChangeFocusTrigger -> do
-    unsubscribeOnblur <- liftIO $ elementOnblur e $ liftIO $ do
+    unsubscribeOnblur <- on e blurEvent $ liftIO $ do
       postGui $ runWithActions [eChangeFocusTrigger :=> False]
-    unsubscribeOnfocus <- liftIO $ elementOnfocus e $ liftIO $ do
+    unsubscribeOnfocus <- on e focusEvent $ liftIO $ do
       postGui $ runWithActions [eChangeFocusTrigger :=> True]
     return $ liftIO $ unsubscribeOnblur >> unsubscribeOnfocus
-  performEvent_ $ fmap (liftIO . htmlTextAreaElementSetValue e) eSet
+  performEvent_ $ fmap (TextArea.setValue e . Just) eSet
   f <- holdDyn False eChangeFocus
-  ev <- wrapDomEvent e elementOninput $ liftIO $ htmlTextAreaElementGetValue e
+  ev <- wrapDomEvent e (`on` input) $ fromMaybe "" <$> TextArea.getValue e
   v <- holdDyn initial $ leftmost [eSet, ev]
-  eKeypress <- wrapDomEvent e elementOnkeypress getKeyEvent
+  eKeypress <- wrapDomEvent e (`on` keyPress) getKeyEvent
   return $ TextArea v ev e f eKeypress
 
 data CheckboxConfig t
@@ -133,22 +134,45 @@ checkbox :: MonadWidget t m => Bool -> CheckboxConfig t -> m (Checkbox t)
 checkbox checked config = do
   attrs <- mapDyn (\c -> Map.insert "type" "checkbox" $ (if checked then Map.insert "checked" "checked" else Map.delete "checked") c) (_checkboxConfig_attributes config)
   e <- liftM castToHTMLInputElement $ buildEmptyElement "input" attrs
-  eClick <- wrapDomEvent e elementOnclick $ liftIO $ htmlInputElementGetChecked e
-  performEvent_ $ fmap (\v -> liftIO $ htmlInputElementSetChecked e $! v) $ _checkboxConfig_setValue config
+  eClick <- wrapDomEvent e (`on` click) $ Input.getChecked e
+  performEvent_ $ fmap (\v -> Input.setChecked e $! v) $ _checkboxConfig_setValue config
   dValue <- holdDyn checked $ leftmost [_checkboxConfig_setValue config, eClick]
   return $ Checkbox dValue eClick
 
 checkboxView :: MonadWidget t m => Dynamic t (Map String String) -> Dynamic t Bool -> m (Event t Bool)
 checkboxView dAttrs dValue = do
   e <- liftM castToHTMLInputElement $ buildEmptyElement "input" =<< mapDyn (Map.insert "type" "checkbox") dAttrs
-  eClicked <- wrapDomEvent e elementOnclick $ do
+  eClicked <- wrapDomEvent e (`on` click) $ do
     preventDefault
-    liftIO $ htmlInputElementGetChecked e
+    Input.getChecked e
   schedulePostBuild $ do
     v <- sample $ current dValue
-    when v $ liftIO $ htmlInputElementSetChecked e True
-  performEvent_ $ fmap (\v -> liftIO $ htmlInputElementSetChecked e $! v) $ updated dValue
+    when v $ Input.setChecked e True
+  performEvent_ $ fmap (\v -> Input.setChecked e $! v) $ updated dValue
   return eClicked
+
+data FileInput t
+   = FileInput { _fileInput_value :: Dynamic t [File]
+               , _fileInput_element :: HTMLInputElement
+               }
+
+data FileInputConfig t
+   = FileInputConfig { _fileInputConfig_attributes :: Dynamic t (Map String String)
+                     }
+
+instance Reflex t => Default (FileInputConfig t) where
+  def = FileInputConfig { _fileInputConfig_attributes = constDyn mempty
+                        }
+
+fileInput :: MonadWidget t m => FileInputConfig t -> m (FileInput t)
+fileInput (FileInputConfig dAttrs) = do
+  e <- liftM castToHTMLInputElement $ buildEmptyElement "input" =<< mapDyn (Map.insert "type" "file") dAttrs
+  eChange <- wrapDomEvent e elementOnchange $ liftIO $ do
+    Just files <- htmlInputElementGetFiles e
+    len <- fileListGetLength files
+    mapM (liftM (fromMaybe (error "fileInput: fileListItem returned null")) . fileListItem files) $ init [0..len]
+  dValue <- holdDyn [] eChange
+  return $ FileInput dValue e
 
 data Dropdown t k
     = Dropdown { _dropdown_value :: Dynamic t k
@@ -176,9 +200,9 @@ dropdown k0 options (DropdownConfig setK attrs) = do
     listWithKey optionsWithDefault $ \k v -> do
       elAttr "option" ("value" =: show k <> if k == k0 then "selected" =: "selected" else mempty) $ dynText v
   let e = castToHTMLSelectElement $ _el_element eRaw
-  performEvent_ $ fmap (liftIO . htmlSelectElementSetValue e . show) setK
-  eChange <- wrapDomEvent e elementOnchange $ do
-    kStr <- liftIO $ htmlSelectElementGetValue e
+  performEvent_ $ fmap (Select.setValue e . Just . show) setK
+  eChange <- wrapDomEvent e (`on` change) $ do
+    kStr <- fromMaybe "" <$> Select.getValue e
     return $ readMay kStr
   let readKey opts mk = fromMaybe k0 $ do
         k <- mk
@@ -197,10 +221,6 @@ liftM concat $ mapM makeLenses
   , ''CheckboxConfig
   , ''Checkbox
   ]
-
-class HasAttributes a where
-  type Attrs a :: *
-  attributes :: Lens' a (Attrs a)
 
 instance HasAttributes (TextAreaConfig t) where
   type Attrs (TextAreaConfig t) = Dynamic t (Map String String)
@@ -249,6 +269,10 @@ instance HasValue (TextArea t) where
 instance HasValue (TextInput t) where
   type Value (TextInput t) = Dynamic t String
   value = _textInput_value
+
+instance HasValue (FileInput t) where
+  type Value (FileInput t) = Dynamic t [File]
+  value = _fileInput_value
 
 instance HasValue (Dropdown t k) where
   type Value (Dropdown t k) = Dynamic t k
