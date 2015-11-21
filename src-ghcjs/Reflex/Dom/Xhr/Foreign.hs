@@ -119,3 +119,6 @@ xmlHttpRequestGetStatusText = getStatusText
 
 xmlHttpRequestGetResponseURL :: FromJSString result => XMLHttpRequest -> IO result
 xmlHttpRequestGetResponseURL = getResponseURL
+
+statusTextToText :: Text -> Text
+statusTextToText = id

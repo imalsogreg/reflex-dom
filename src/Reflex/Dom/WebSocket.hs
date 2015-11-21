@@ -7,7 +7,7 @@ import Prelude hiding (div, span, mapM, mapM_, concat, concatMap, all, sequence)
 import Reflex
 import Reflex.Host.Class
 import Reflex.Dom.Class
-import Reflex.Dom.WebSocket.Foreign
+-- import Reflex.Dom.WebSocket.Foreign
 
 import Control.Concurrent
 import Control.Lens
@@ -20,6 +20,7 @@ import Data.Default
 import Data.Dependent.Map (DSum (..))
 import Data.IORef
 
+{-
 data WebSocketConfig t
    = WebSocketConfig { _webSocketConfig_send :: Event t [ByteString]
                      }
@@ -61,3 +62,4 @@ webSocket url config = do
   return $ WebSocket eRecv
 
 makeLensesWith (lensRules & simpleLenses .~ True) ''WebSocketConfig
+-}

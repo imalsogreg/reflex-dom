@@ -79,10 +79,11 @@ buildEmptyElementNS mns elementTag attrs = do
   p <- askParent
   Just e <- liftIO $ case mns of
     Nothing -> createElement doc (Just elementTag)
-    Just ns -> creaeElementNS doc ns (Just elementTag)
+    Just ns -> createElementNS doc (Just ns) (Just elementTag)
   addAttributes attrs e
   _ <- appendChild p $ Just e
   return $ castToElement e
+
 
 -- <<<<<<< HEAD
 --   Just e <- liftIO $ case mns of
@@ -92,8 +93,9 @@ buildEmptyElementNS mns elementTag attrs = do
 --   _ <- liftIO $ nodeAppendChild p $ Just e
 --   return $ castToElement e
 
--- buildEmptyElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m Element
--- buildEmptyElement = buildEmptyElementNS Nothing
+buildEmptyElement :: (MonadWidget t m, Attributes m attrs) => String -> attrs -> m Element
+buildEmptyElement = buildEmptyElementNS Nothing
+
 -- =======
 --   Just e <- createElement doc (Just elementTag)
 --   addAttributes attrs e
@@ -216,7 +218,7 @@ widgetHoldInternal child0 newChild = do
         postBuild
 
         mp <- getParentNode endPlaceholder
-        forM_ mp $ \pq -> insertBefore p (Just df) (Just endPlaceholder)
+        forM_ mp $ \pq -> insertBefore pq (Just df) (Just endPlaceholder)
 
 -- <<<<<<< HEAD
 --         mp' <- liftIO $ nodeGetParentNode endPlaceholder
@@ -275,7 +277,7 @@ listWithKeyShallowDiff initialVals valsChanged mkChild = do
         Nothing -> Just Nothing -- Even if we let a Nothing through when the element doesn't already exist, this doesn't cause a problem because it is ignored
         Just _ -> Nothing -- We don't want to let spurious re-creations of items through
   listHoldWithKey initialVals (attachWith (flip (Map.differenceWith relevantDiff)) (current sentVals) valsChanged) $ \k v ->
-    mkChild k v $ select childValChangedSelector $ Const2 k
+    mkChild k v $ Reflex.select childValChangedSelector $ Const2 k
 
 -- | Display the given map of items using the builder function provided, and update it with the given event.  'Nothing' entries will delete the corresponding children, and 'Just' entries will create or replace them.  Since child events do not take any signal arguments, they are always rebuilt.  To update a child without rebuilding, either embed signals in the map's values, or refer to them directly in the builder function.
 listHoldWithKey :: (Ord k, MonadWidget t m) => Map k v -> Event t (Map k (Maybe v)) -> (k -> v -> m a) -> m (Dynamic t (Map k a))
@@ -862,7 +864,7 @@ defaultDomEventHandler e evt = liftM (Just . EventResult) $ case evt of
   Touchend -> return ()
   Touchcancel -> return ()
 
-wrapElement :: forall t h m. (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => (forall en. Element -> EventName en -> EventM (EventType en) Element (Maybe (EventResult en))) -> Element -> m (El t)
+wrapElement :: forall t h m. (Functor (Event t), MonadIO m, MonadSample t m, MonadReflexCreateTrigger t m, Reflex t, HasPostGui t h m) => (forall en. Element -> EventName en -> EventM Element (EventType en) (Maybe (EventResult en))) -> Element -> m (El t)
 wrapElement eh e = do
   es <- wrapDomEventsMaybe e $ eh e
   return $ El e es
@@ -955,7 +957,7 @@ elDynHtml' elementTag html = do
 -- =======
   schedulePostBuild $ setInnerHTML e . Just =<< sample (current html)
   addVoidAction $ fmap (setInnerHTML e . Just) $ updated html
-  wrapElement e
+  wrapElement defaultDomEventHandler e
 -- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
 
 elDynHtmlAttr' :: MonadWidget t m => String -> Map String String -> Dynamic t String -> m (El t)
@@ -969,7 +971,7 @@ elDynHtmlAttr' elementTag attrs html = do
 -- =======
   schedulePostBuild $ setInnerHTML e . Just =<< sample (current html)
   addVoidAction $ fmap (setInnerHTML e . Just) $ updated html
-  wrapElement e
+  wrapElement defaultDomEventHandler e
 
 {-
 
@@ -1109,7 +1111,7 @@ unsafePlaceElement e = do
 --  wrapElement defaultDomEventHandler e
 -- =======
   _ <- appendChild p $ Just e
-  wrapElement e
+  wrapElement defaultDomEventHandler e
 -- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
 
 deriveGEq ''EventName

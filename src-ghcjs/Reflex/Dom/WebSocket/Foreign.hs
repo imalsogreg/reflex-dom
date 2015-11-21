@@ -14,10 +14,11 @@ import GHCJS.Types
 
 #define JS(name, js, type) foreign import javascript unsafe js name :: type
 
-newtype JSWebSocket = JSWebSocket { unWebSocket :: JSRef JSWebSocket }
+{-
+newtype JSWebSocket = JSWebSocket { unWebSocket :: JSVal JSWebSocket }
 
 data JSByteArray
-JS(extractByteArray, "new Uint8Array($1_1.buf, $1_2, $2)", Ptr a -> Int -> IO (JSRef JSByteArray))
+JS(extractByteArray, "new Uint8Array($1_1.buf, $1_2, $2)", Ptr a -> Int -> IO (JSVal JSByteArray))
 
 JS(newWebSocket_, "(function() { var ws = new WebSocket($1); ws['binaryType'] = 'arraybuffer'; ws['onmessage'] = function(e){ $2(e['data']); }; ws['onclose'] = function(e){ $3(); }; return ws; })()", JSString -> JSFun (JSString -> IO ()) -> JSFun (IO ()) -> IO (JSRef JSWebSocket))
 
@@ -38,7 +39,8 @@ JS(getLocationProtocol_, "location.protocol", IO JSString)
 getLocationProtocol :: FromJSString r => a -> IO r
 getLocationProtocol _ = liftM fromJSString getLocationProtocol_
 
-newWebSocket :: a -> String -> (ByteString -> IO ()) -> IO () -> IO JSWebSocket
+
+--newWebSocket :: a -> String -> (ByteString -> IO ()) -> IO () -> IO JSWebSocket
 newWebSocket _ url onMessage onClose = do
   onMessageFun <- syncCallback1 AlwaysRetain True $ onMessage <=< return . encodeUtf8 . fromJSString
   rec onCloseFun <- syncCallback AlwaysRetain True $ do
@@ -47,3 +49,4 @@ newWebSocket _ url onMessage onClose = do
         onClose
   liftM JSWebSocket $ newWebSocket_ (toJSString url) onMessageFun onCloseFun
 
+-}
