@@ -41,7 +41,7 @@ library
     exception-transformers == 0.4.*,
     directory == 1.2.*,
     dependent-sum-template >= 0.0.0.4 && < 0.1,
-    bifunctors == 4.2.*
+    bifunctors >= 4.2 && < 5.1
 
   if impl(ghcjs)
     hs-source-dirs: src-ghcjs
@@ -60,15 +60,17 @@ library
     Reflex.Dom
     Reflex.Dom.Class
     Reflex.Dom.Internal
+    Reflex.Dom.Time
+    Reflex.Dom.WebSocket
     Reflex.Dom.Widget
     Reflex.Dom.Widget.Basic
     Reflex.Dom.Widget.Input
     Reflex.Dom.Widget.Lazy
     Reflex.Dom.Widget.Resize
     Reflex.Dom.Xhr
-    Reflex.Dom.Time
   other-modules:
     Reflex.Dom.Internal.Foreign
+    Reflex.Dom.WebSocket.Foreign
     Reflex.Dom.Xhr.Foreign
 
   other-extensions: TemplateHaskell
