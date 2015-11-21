@@ -41,15 +41,28 @@ virtualListWithSelection heightPx rowPx maxIndex i0 setI listTag listAttrs rowTa
             (li,_) <- tagWrapper rowTag rowAttrs (constDyn $ toHeightStyle rowPx) $ itemBuilder k v s
             return $ fmap (const k) (domEvent Click li)
         return lis
-      selected <- holdDyn (indexToKey i0) sel
-      pb <- getPostBuild
-      scrollPosition <- holdDyn 0 $ leftmost [ domEvent Scroll container
-                                             , fmap (const (i0 * rowPx)) pb
-                                             ]
-      window <- combineDyn (\h -> findWindow h rowPx) heightPx scrollPosition
-      itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ map (\i -> let ix = indexToKey i in (ix, Map.lookup ix is)) [idx .. idx + num]) window items
+
+      -- TODO GREG: Is this right? Copied from hamish version
+      scrollPosition <- holdDyn 0 $ domEvent Scrool container
+      window <- mapDyn (findWindow (heightPx rowPx) scrollPosition
+      itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ take num $ Prelude.drop idx $ Map.toList is) window items
+
+-- <<<<<<< HEAD
+--       selected <- holdDyn (indexToKey i0) sel
+--       pb <- getPostBuild
+--       scrollPosition <- holdDyn 0 $ leftmost [ domEvent Scroll container
+--                                              , fmap (const (i0 * rowPx)) pb
+--                                              ]
+--       window <- combineDyn (\h -> findWindow h rowPx) heightPx scrollPosition
+--       itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ map (\i -> let ix = indexToKey i in (ix, Map.lookup ix is)) [idx .. idx + num]) window items
+-- =======
+--       scrollPosition <- holdDyn 0 $ domEvent Scroll container
+--       window <- mapDyn (findWindow heightPx rowPx) scrollPosition
+--       itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ take num $ Prelude.drop idx $ Map.toList is) window items
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+
   postBuild <- getPostBuild
-  performEvent_ $ fmap (\i -> liftIO $ elementSetScrollTop (_el_element container) (i * rowPx)) $ leftmost [setI, fmap (const i0) postBuild]
+  performEvent_ $ fmap (\i -> liftIO $ setScrollTop (_el_element container) (i * rowPx)) $ leftmost [setI, fmap (const i0) postBuild]
   indexAndLength <- mapDyn snd window
   return (indexAndLength, sel)
   where
