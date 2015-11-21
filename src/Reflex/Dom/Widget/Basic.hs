@@ -251,7 +251,7 @@ applyMap olds diffs = flip Map.mapMaybe (align olds diffs) $ \case
 --TODO: Something better than Dynamic t (Map k v) - we want something where the Events carry diffs, not the whole value
 listWithKey :: forall t k v m a. (Ord k, MonadWidget t m) => Dynamic t (Map k v) -> (k -> Dynamic t v -> m a) -> m (Dynamic t (Map k a))
 listWithKey vals mkChild = do
-<<<<<<< HEAD
+-- <<<<<<< HEAD
   postBuild <- getPostBuild
   rec sentVals :: Dynamic t (Map k v) <- foldDyn (flip applyMap) Map.empty changeVals
       let changeVals :: Event t (Map k (Maybe v))
@@ -280,57 +280,57 @@ listWithKeyShallowDiff initialVals valsChanged mkChild = do
 -- | Display the given map of items using the builder function provided, and update it with the given event.  'Nothing' entries will delete the corresponding children, and 'Just' entries will create or replace them.  Since child events do not take any signal arguments, they are always rebuilt.  To update a child without rebuilding, either embed signals in the map's values, or refer to them directly in the builder function.
 listHoldWithKey :: (Ord k, MonadWidget t m) => Map k v -> Event t (Map k (Maybe v)) -> (k -> v -> m a) -> m (Dynamic t (Map k a))
 listHoldWithKey initialVals valsChanged mkChild = do
-=======
-  doc <- askDocument
-  endPlaceholder <- text' ""
-  (newChildren, newChildrenTriggerRef) <- newEventWithTriggerRef
-  performEvent_ $ fmap (const $ return ()) newChildren --TODO: Get rid of this hack
-  children <- hold Map.empty  newChildren
-  addVoidAction $ switch $ fmap (mergeWith (>>) . map snd . Map.elems) children
-  runWidget <- getRunWidget
-  let buildChild df k v = runWidget df $ do
-        childStart <- text' ""
-        result <- mkChild k =<< holdDyn v (fmapMaybe (Map.lookup k) (updated vals))
-        childEnd <- text' ""
-        return (result, (childStart, childEnd))
-  schedulePostBuild $ do
-    Just df <- createDocumentFragment doc
-    curVals <- sample $ current vals
-    initialState <- iforM curVals $ \k v -> do
-      (result, postBuild, voidAction) <- buildChild df k v
-      return ((result, voidAction), postBuild)
-    runFrameWithTriggerRef newChildrenTriggerRef $ fmap fst initialState --TODO: Do all these in a single runFrame
-    sequence_ $ fmap snd initialState
-    Just p <- getParentNode endPlaceholder
-    _ <- insertBefore p (Just df) (Just endPlaceholder)
-    return ()
-  addVoidAction $ flip fmap (updated vals) $ \newVals -> do
-    curState <- sample children
-    --TODO: Should we remove the parent from the DOM first to avoid reflows?
-    (newState, postBuild) <- flip runStateT (return ()) $ liftM (Map.mapMaybe id) $ iforM (align curState newVals) $ \k -> \case
-      This ((_, (start, end)), _) -> do
-        liftIO $ deleteBetweenInclusive start end
-        return Nothing
-      That v -> do
-        Just df <- createDocumentFragment doc
-        (childResult, childPostBuild, childVoidAction) <- lift $ buildChild df k v
-        let s = (childResult, childVoidAction)
-        modify (>>childPostBuild)
-        let placeholder = case Map.lookupGT k curState of
-              Nothing -> endPlaceholder
-              Just (_, ((_, (start, _)), _)) -> start
-        Just p <- getParentNode placeholder
-        _ <- insertBefore p (Just df) (Just placeholder)
-        return $ Just s
-      These state _ -> do
-        return $ Just state
-    runFrameWithTriggerRef newChildrenTriggerRef newState
-    postBuild
-  holdDyn Map.empty $ fmap (fmap (fst . fst)) newChildren
-
-listWithKey' :: forall t m k v a. (Ord k, MonadWidget t m) => Map k v -> Event t (Map k (Maybe v)) -> (k -> v -> Event t v -> m a) -> m (Dynamic t (Map k a))
-listWithKey' initialVals valsChanged mkChild = do
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- =======
+--   doc <- askDocument
+--   endPlaceholder <- text' ""
+--   (newChildren, newChildrenTriggerRef) <- newEventWithTriggerRef
+--   performEvent_ $ fmap (const $ return ()) newChildren --TODO: Get rid of this hack
+--   children <- hold Map.empty  newChildren
+--   addVoidAction $ switch $ fmap (mergeWith (>>) . map snd . Map.elems) children
+--   runWidget <- getRunWidget
+--   let buildChild df k v = runWidget df $ do
+--         childStart <- text' ""
+--         result <- mkChild k =<< holdDyn v (fmapMaybe (Map.lookup k) (updated vals))
+--         childEnd <- text' ""
+--         return (result, (childStart, childEnd))
+--   schedulePostBuild $ do
+--     Just df <- createDocumentFragment doc
+--     curVals <- sample $ current vals
+--     initialState <- iforM curVals $ \k v -> do
+--       (result, postBuild, voidAction) <- buildChild df k v
+--       return ((result, voidAction), postBuild)
+--     runFrameWithTriggerRef newChildrenTriggerRef $ fmap fst initialState --TODO: Do all these in a single runFrame
+--     sequence_ $ fmap snd initialState
+--     Just p <- getParentNode endPlaceholder
+--     _ <- insertBefore p (Just df) (Just endPlaceholder)
+--     return ()
+--   addVoidAction $ flip fmap (updated vals) $ \newVals -> do
+--     curState <- sample children
+--     --TODO: Should we remove the parent from the DOM first to avoid reflows?
+--     (newState, postBuild) <- flip runStateT (return ()) $ liftM (Map.mapMaybe id) $ iforM (align curState newVals) $ \k -> \case
+--       This ((_, (start, end)), _) -> do
+--         liftIO $ deleteBetweenInclusive start end
+--         return Nothing
+--       That v -> do
+--         Just df <- createDocumentFragment doc
+--         (childResult, childPostBuild, childVoidAction) <- lift $ buildChild df k v
+--         let s = (childResult, childVoidAction)
+--         modify (>>childPostBuild)
+--         let placeholder = case Map.lookupGT k curState of
+--               Nothing -> endPlaceholder
+--               Just (_, ((_, (start, _)), _)) -> start
+--         Just p <- getParentNode placeholder
+--         _ <- insertBefore p (Just df) (Just placeholder)
+--         return $ Just s
+--       These state _ -> do
+--         return $ Just state
+--     runFrameWithTriggerRef newChildrenTriggerRef newState
+--     postBuild
+--   holdDyn Map.empty $ fmap (fmap (fst . fst)) newChildren
+-- 
+-- listWithKey' :: forall t m k v a. (Ord k, MonadWidget t m) => Map k v -> Event t (Map k (Maybe v)) -> (k -> v -> Event t v -> m a) -> m (Dynamic t (Map k a))
+-- listWithKey' initialVals valsChanged mkChild = do
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
   doc <- askDocument
   endPlaceholder <- text' ""
   (newChildren, newChildrenTriggerRef) <- newEventWithTriggerRef
@@ -339,11 +339,11 @@ listWithKey' initialVals valsChanged mkChild = do
   let buildChild df k v = runWidget df $ wrapChild k v
       wrapChild k v = do
         childStart <- text' ""
-<<<<<<< HEAD
+-- <<<<<<< HEAD
         result <- mkChild k v
-=======
-        result <- mkChild k v $ Reflex.select childValChangedSelector $ Const2 k
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- =======
+--         result <- mkChild k v $ Reflex.select childValChangedSelector $ Const2 k
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
         childEnd <- text' ""
         return (result, (childStart, childEnd))
   Just dfOrig <- createDocumentFragment doc
@@ -351,13 +351,13 @@ listWithKey' initialVals valsChanged mkChild = do
   stateRef <- liftIO $ newIORef initialState
   children <- holdDyn initialState newChildren
   addVoidAction $ switch $ fmap (mergeWith (>>) . map snd . Map.elems) $ current children
-<<<<<<< HEAD
-  mpOrig <- liftIO $ nodeGetParentNode endPlaceholder
-  forM_ mpOrig $ \pOrig -> liftIO $ nodeInsertBefore pOrig (Just dfOrig) (Just endPlaceholder)
-=======
-  Just pOrig <- getParentNode endPlaceholder
-  _ <- insertBefore pOrig (Just dfOrig) (Just endPlaceholder)
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- <<<<<<< HEAD
+  mpOrig <- getParentNode endPlaceholder
+  forM_ mpOrig $ \pOrig -> insertBefore pOrig (Just dfOrig) (Just endPlaceholder)
+-- =======
+--   Just pOrig <- getParentNode endPlaceholder
+--   _ <- insertBefore pOrig (Just dfOrig) (Just endPlaceholder)
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
   addVoidAction $ flip fmap valsChanged $ \newVals -> do
     curState <- liftIO $ readIORef stateRef
     --TODO: Should we remove the parent from the DOM first to avoid reflows?
@@ -371,13 +371,13 @@ listWithKey' initialVals valsChanged mkChild = do
         (childResult, childPostBuild, childVoidAction) <- lift $ buildChild df k v
         let s = (childResult, childVoidAction)
         modify (>>childPostBuild)
-<<<<<<< HEAD
-        mp <- liftIO $ nodeGetParentNode end
-        forM_ mp $ \p -> liftIO $ nodeInsertBefore p (Just df) (Just end)
-=======
-        Just p <- getParentNode end
-        _ <- insertBefore p (Just df) (Just end)
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- <<<<<<< HEAD
+        mp <- getParentNode end
+        forM_ mp $ \p -> insertBefore p (Just df) (Just end)
+-- =======
+--         Just p <- getParentNode end
+--         _ <- insertBefore p (Just df) (Just end)
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
         return $ Just s
       That Nothing -> return Nothing -- Deleting non-existent child
       That (Just v) -> do -- Creating new child
@@ -388,13 +388,13 @@ listWithKey' initialVals valsChanged mkChild = do
         let placeholder = case Map.lookupGT k curState of
               Nothing -> endPlaceholder
               Just (_, ((_, (start, _)), _)) -> start
-<<<<<<< HEAD
-        mp <- liftIO $ nodeGetParentNode placeholder
-        forM_ mp $ \p -> liftIO $ nodeInsertBefore p (Just df) (Just placeholder)
-=======
-        Just p <- getParentNode placeholder
-        _ <- insertBefore p (Just df) (Just placeholder)
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- <<<<<<< HEAD
+        mp <- getParentNode placeholder
+        forM_ mp $ \p -> insertBefore p (Just df) (Just placeholder)
+-- =======
+--         Just p <- getParentNode placeholder
+--         _ <- insertBefore p (Just df) (Just placeholder)
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
         return $ Just s
       This state -> do -- No change
         return $ Just state
@@ -410,7 +410,7 @@ listViewWithKey :: (Ord k, MonadWidget t m) => Dynamic t (Map k v) -> (k -> Dyna
 listViewWithKey vals mkChild = liftM (switch . fmap mergeMap) $ listViewWithKey' vals mkChild
 
 listViewWithKey' :: (Ord k, MonadWidget t m) => Dynamic t (Map k v) -> (k -> Dynamic t v -> m a) -> m (Behavior t (Map k a))
-<<<<<<< HEAD
+-- <<<<<<< HEAD
 listViewWithKey' vals mkChild = liftM current $ listWithKey vals mkChild
 
 -- | Create a dynamically-changing set of widgets, one of which is selected at any time.
@@ -420,60 +420,60 @@ selectViewListWithKey :: forall t m k v a. (MonadWidget t m, Ord k)
   -> (k -> Dynamic t v -> Dynamic t Bool -> m (Event t a)) -- ^ Function to create a widget for a given key from Dynamic value and Dynamic Bool indicating if this widget is currently selected
   -> m (Event t (k, a))        -- ^ Event that fires when any child's return Event fires.  Contains key of an arbitrary firing widget.
 selectViewListWithKey selection vals mkChild = do
-=======
-listViewWithKey' vals mkChild = do
-  doc <- askDocument
-  endPlaceholder <- text' ""
-  (newChildren, newChildrenTriggerRef) <- newEventWithTriggerRef
-  performEvent_ $ fmap (const $ return ()) newChildren --TODO: Get rid of this hack
-  children <- hold Map.empty newChildren
-  addVoidAction $ switch $ fmap (mergeWith (>>) . map snd . Map.elems) children
-  runWidget <- getRunWidget
-  let buildChild df k v = runWidget df $ do
-        childStart <- text' ""
-        result <- mkChild k =<< holdDyn v (fmapMaybe (Map.lookup k) (updated vals))
-        childEnd <- text' ""
-        return (result, (childStart, childEnd))
-  schedulePostBuild $ do
-    Just df <- createDocumentFragment doc
-    curVals <- sample $ current vals
-    initialState <- iforM curVals $ \k v -> do
-      (result, postBuild, voidAction) <- buildChild df k v
-      return ((result, voidAction), postBuild)
-    runFrameWithTriggerRef newChildrenTriggerRef $ fmap fst initialState --TODO: Do all these in a single runFrame
-    sequence_ $ fmap snd initialState
-    Just p <- getParentNode endPlaceholder
-    _ <- insertBefore p (Just df) (Just endPlaceholder)
-    return ()
-  addVoidAction $ flip fmap (updated vals) $ \newVals -> do
-    curState <- sample children
-    --TODO: Should we remove the parent from the DOM first to avoid reflows?
-    (newState, postBuild) <- flip runStateT (return ()) $ liftM (Map.mapMaybe id) $ iforM (align curState newVals) $ \k -> \case
-      This ((_, (start, end)), _) -> do
-        liftIO $ deleteBetweenInclusive start end
-        return Nothing
-      That v -> do
-        Just df <- createDocumentFragment doc
-        (childResult, childPostBuild, childVoidAction) <- lift $ buildChild df k v
-        let s = (childResult, childVoidAction)
-        modify (>>childPostBuild)
-        let placeholder = case Map.lookupGT k curState of
-              Nothing -> endPlaceholder
-              Just (_, ((_, (start, _)), _)) -> start
-        Just p <- getParentNode placeholder
-        _ <- insertBefore p (Just df) (Just placeholder)
-        return $ Just s
-      These state _ -> do
-        return $ Just state
-    runFrameWithTriggerRef newChildrenTriggerRef newState
-    postBuild
-  return $ fmap (fmap (fst . fst)) children
-
---TODO: Deduplicate the various list*WithKey* implementations
-
-selectViewListWithKey_ :: forall t m k v a. (MonadWidget t m, Ord k) => Dynamic t k -> Dynamic t (Map k v) -> (k -> Dynamic t v -> Dynamic t Bool -> m (Event t a)) -> m (Event t k)
-selectViewListWithKey_ selection vals mkChild = do
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- =======
+-- listViewWithKey' vals mkChild = do
+--   doc <- askDocument
+--   endPlaceholder <- text' ""
+--   (newChildren, newChildrenTriggerRef) <- newEventWithTriggerRef
+--   performEvent_ $ fmap (const $ return ()) newChildren --TODO: Get rid of this hack
+--   children <- hold Map.empty newChildren
+--   addVoidAction $ switch $ fmap (mergeWith (>>) . map snd . Map.elems) children
+--   runWidget <- getRunWidget
+--   let buildChild df k v = runWidget df $ do
+--         childStart <- text' ""
+--         result <- mkChild k =<< holdDyn v (fmapMaybe (Map.lookup k) (updated vals))
+--         childEnd <- text' ""
+--         return (result, (childStart, childEnd))
+--   schedulePostBuild $ do
+--     Just df <- createDocumentFragment doc
+--     curVals <- sample $ current vals
+--     initialState <- iforM curVals $ \k v -> do
+--       (result, postBuild, voidAction) <- buildChild df k v
+--       return ((result, voidAction), postBuild)
+--     runFrameWithTriggerRef newChildrenTriggerRef $ fmap fst initialState --TODO: Do all these in a single runFrame
+--     sequence_ $ fmap snd initialState
+--     Just p <- getParentNode endPlaceholder
+--     _ <- insertBefore p (Just df) (Just endPlaceholder)
+--     return ()
+--   addVoidAction $ flip fmap (updated vals) $ \newVals -> do
+--     curState <- sample children
+--     --TODO: Should we remove the parent from the DOM first to avoid reflows?
+--     (newState, postBuild) <- flip runStateT (return ()) $ liftM (Map.mapMaybe id) $ iforM (align curState newVals) $ \k -> \case
+--       This ((_, (start, end)), _) -> do
+--         liftIO $ deleteBetweenInclusive start end
+--         return Nothing
+--       That v -> do
+--         Just df <- createDocumentFragment doc
+--         (childResult, childPostBuild, childVoidAction) <- lift $ buildChild df k v
+--         let s = (childResult, childVoidAction)
+--         modify (>>childPostBuild)
+--         let placeholder = case Map.lookupGT k curState of
+--               Nothing -> endPlaceholder
+--               Just (_, ((_, (start, _)), _)) -> start
+--         Just p <- getParentNode placeholder
+--         _ <- insertBefore p (Just df) (Just placeholder)
+--         return $ Just s
+--       These state _ -> do
+--         return $ Just state
+--     runFrameWithTriggerRef newChildrenTriggerRef newState
+--     postBuild
+--   return $ fmap (fmap (fst . fst)) children
+-- 
+-- --TODO: Deduplicate the various list*WithKey* implementations
+-- 
+-- selectViewListWithKey_ :: forall t m k v a. (MonadWidget t m, Ord k) => Dynamic t k -> Dynamic t (Map k v) -> (k -> Dynamic t v -> Dynamic t Bool -> m (Event t a)) -> m (Event t k)
+-- selectViewListWithKey_ selection vals mkChild = do
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
   let selectionDemux = demux selection -- For good performance, this value must be shared across all children
   selectChild <- listWithKey vals $ \k v -> do
     selected <- getDemuxed selectionDemux k
@@ -805,24 +805,24 @@ getKeyEvent = do
 getMouseEventCoords :: EventM e MouseEvent (Int, Int)
 getMouseEventCoords = do
   e <- event
-<<<<<<< HEAD
-  liftIO $ bisequence (mouseEventGetClientX e, mouseEventGetClientY e)
-=======
+-- <<<<<<< HEAD
+--  bisequence (mouseEventGetClientX e, mouseEventGetClientY e)
+-- =======
   bisequence (getX e, getY e)
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
 
 defaultDomEventHandler :: IsElement e => e -> EventName en -> EventM e (EventType en) (Maybe (EventResult en))
 defaultDomEventHandler e evt = liftM (Just . EventResult) $ case evt of
   Click -> return ()
   Dblclick -> return ()
   Keypress -> getKeyEvent
-<<<<<<< HEAD
-  Keydown -> getKeyEvent
-  Keyup -> getKeyEvent
-  Scroll -> liftIO $ elementGetScrollTop e
-=======
+-- <<<<<<< HEAD
+--   Keydown -> getKeyEvent
+--   Keyup -> getKeyEvent
+--   Scroll -> liftIO $ elementGetScrollTop e
+-- =======
   Scroll -> getScrollTop e
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
   Mousemove -> getMouseEventCoords
   Mouseup -> getMouseEventCoords
   Mousedown -> getMouseEventCoords
@@ -947,26 +947,26 @@ simpleList xs mkChild = mapDyn (map snd . Map.toList) =<< flip list mkChild =<< 
 elDynHtml' :: MonadWidget t m => String -> Dynamic t String -> m (El t)
 elDynHtml' elementTag html = do
   e <- buildEmptyElement elementTag (Map.empty :: Map String String)
-<<<<<<< HEAD
-  let h = castToHTMLElement e
-  schedulePostBuild $ liftIO . htmlElementSetInnerHTML h =<< sample (current html)
-  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML h) $ updated html
-  wrapElement defaultDomEventHandler e
-=======
+-- <<<<<<< HEAD
+--   let h = castToHTMLElement e
+--   schedulePostBuild $ liftIO . htmlElementSetInnerHTML h =<< sample (current html)
+--   addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML h) $ updated html
+--   wrapElement defaultDomEventHandler e
+-- =======
   schedulePostBuild $ setInnerHTML e . Just =<< sample (current html)
   addVoidAction $ fmap (setInnerHTML e . Just) $ updated html
   wrapElement e
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
 
 elDynHtmlAttr' :: MonadWidget t m => String -> Map String String -> Dynamic t String -> m (El t)
 elDynHtmlAttr' elementTag attrs html = do
   e <- buildEmptyElement elementTag attrs
-<<<<<<< HEAD
-  let h = castToHTMLElement e
-  schedulePostBuild $ liftIO . htmlElementSetInnerHTML h =<< sample (current html)
-  addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML h) $ updated html
-  wrapElement defaultDomEventHandler e
-=======
+-- <<<<<<< HEAD
+--   let h = castToHTMLElement e
+--   schedulePostBuild $ liftIO . htmlElementSetInnerHTML h =<< sample (current html)
+--   addVoidAction $ fmap (liftIO . htmlElementSetInnerHTML h) $ updated html
+--   wrapElement defaultDomEventHandler e
+-- =======
   schedulePostBuild $ setInnerHTML e . Just =<< sample (current html)
   addVoidAction $ fmap (setInnerHTML e . Just) $ updated html
   wrapElement e
@@ -974,7 +974,7 @@ elDynHtmlAttr' elementTag attrs html = do
 {-
 
 --TODO: Update dynamically
-{-# INLINABLE dynHtml #-}
+-- {-# INLINABLE dynHtml #-}
 dynHtml :: MonadWidget t m => Dynamic t String -> m ()
 dynHtml ds = do
   let mkSelf h = do
@@ -986,7 +986,7 @@ dynHtml ds = do
   putEChildren $ fmap ((:[]) . toNode) eCreated
 
 -}
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
 
 data Link t
   = Link { _link_clicked :: Event t ()
@@ -1010,11 +1010,11 @@ class HasDomEvent t a where
   domEvent :: EventName en -> a -> Event t (EventResultType en)
 
 instance Reflex t => HasDomEvent t (El t) where
-<<<<<<< HEAD
-  domEvent en e = fmap unEventResult $ select (_el_events e) (WrapArg en)
-=======
+-- <<<<<<< HEAD
+--  domEvent en e = fmap unEventResult $ select (_el_events e) (WrapArg en)
+-- =======
   domEvent en el = fmap unEventResult $ Reflex.select (_el_events el) (WrapArg en)
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
 
 linkClass :: MonadWidget t m => String -> String -> m (Link t)
 linkClass s c = do
@@ -1104,13 +1104,13 @@ tabDisplay ulClass activeClass tabItems = do
 unsafePlaceElement :: MonadWidget t m => Element -> m (El t)
 unsafePlaceElement e = do
   p <- askParent
-<<<<<<< HEAD
-  _ <- liftIO $ nodeAppendChild p $ Just e
-  wrapElement defaultDomEventHandler e
-=======
+-- <<<<<<< HEAD
+--   _ <- liftIO $ nodeAppendChild p $ Just e
+--  wrapElement defaultDomEventHandler e
+-- =======
   _ <- appendChild p $ Just e
   wrapElement e
->>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
+-- >>>>>>> a60ae687cdc284a8eb3776fc95aa2adefc51e7ec
 
 deriveGEq ''EventName
 deriveGCompare ''EventName
