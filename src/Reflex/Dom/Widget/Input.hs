@@ -168,10 +168,10 @@ instance Reflex t => Default (FileInputConfig t) where
 fileInput :: MonadWidget t m => FileInputConfig t -> m (FileInput t)
 fileInput (FileInputConfig dAttrs) = do
   e <- liftM castToHTMLInputElement $ buildEmptyElement "input" =<< mapDyn (Map.insert "type" "file") dAttrs
-  eChange <- wrapDomEvent e elementOnchange $ liftIO $ do
-    Just files <- htmlInputElementGetFiles e
-    len <- fileListGetLength files
-    mapM (liftM (fromMaybe (error "fileInput: fileListItem returned null")) . fileListItem files) $ init [0..len]
+  eChange <- wrapDomEvent e (`on` change) $ liftIO $ do
+    Just files <- getFiles e
+    len <- GHCJS.DOM.FileList.getLength files
+    mapM (liftM (fromMaybe (Prelude.error "fileInput: fileListItem returned null")) . GHCJS.DOM.FileList.item files) $ init [0..len]
   dValue <- holdDyn [] eChange
   return $ FileInput dValue e
 

@@ -43,18 +43,17 @@ virtualListWithSelection heightPx rowPx maxIndex i0 setI listTag listAttrs rowTa
         return lis
 
       -- TODO GREG: Is this right? Copied from hamish version
-      scrollPosition <- holdDyn 0 $ domEvent Scrool container
-      window <- mapDyn (findWindow (heightPx rowPx) scrollPosition
-      itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ take num $ Prelude.drop idx $ Map.toList is) window items
+--       scrollPosition <- holdDyn 0 $ domEvent Scroll container
+--       window <- mapDyn (findWindow heightPx rowPx) scrollPosition
+--       itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ take num $ Prelude.drop idx $ Map.toList is) window items
 
--- <<<<<<< HEAD
---       selected <- holdDyn (indexToKey i0) sel
---       pb <- getPostBuild
---       scrollPosition <- holdDyn 0 $ leftmost [ domEvent Scroll container
---                                              , fmap (const (i0 * rowPx)) pb
---                                              ]
---       window <- combineDyn (\h -> findWindow h rowPx) heightPx scrollPosition
---       itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ map (\i -> let ix = indexToKey i in (ix, Map.lookup ix is)) [idx .. idx + num]) window items
+      selected <- holdDyn (indexToKey i0) sel
+      pb <- getPostBuild
+      scrollPosition <- holdDyn 0 $ leftmost [ domEvent Scroll container
+                                             , fmap (const (i0 * rowPx)) pb
+                                             ]
+      window <- combineDyn (\h -> findWindow h rowPx) heightPx scrollPosition
+      itemsInWindow <- combineDyn (\(_,(idx,num)) is -> Map.fromList $ map (\i -> let ix = indexToKey i in (ix, Map.lookup ix is)) [idx .. idx + num]) window items
 -- =======
 --       scrollPosition <- holdDyn 0 $ domEvent Scroll container
 --       window <- mapDyn (findWindow heightPx rowPx) scrollPosition
@@ -105,7 +104,7 @@ virtualList heightPx rowPx maxIndex i0 setI keyToIndex items0 itemsUpdate itemBu
                                              , fmap (const (i0 * rowPx)) pb
                                              ]
       window <- combineDyn (\h -> findWindow h rowPx) heightPx scrollPosition
-  performEvent_ $ fmap (\i -> liftIO $ elementSetScrollTop (_el_element viewport) (i * rowPx)) $ leftmost [setI, fmap (const i0) pb]
+  performEvent_ $ fmap (\i -> setScrollTop (_el_element viewport) (i * rowPx)) $ leftmost [setI, fmap (const i0) pb]
   return (nubDyn window, result)
   where
     toStyleAttr m = "style" =: (Map.foldWithKey (\k v s -> k <> ":" <> v <> ";" <> s) "" m)
