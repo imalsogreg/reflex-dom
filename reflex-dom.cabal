@@ -33,7 +33,6 @@ library
     lens >= 4.7 && < 4.14,
     ghcjs-dom >= 0.2 && < 0.3,
     transformers == 0.4.*,
-    lens >= 4.7 && < 4.14,
     ghcjs-dom >= 0.2.1 && < 0.3,
     safe == 0.3.*,
     text == 1.2.*,
