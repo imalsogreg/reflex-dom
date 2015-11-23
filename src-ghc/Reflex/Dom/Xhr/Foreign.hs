@@ -158,6 +158,3 @@ xmlHttpRequestGetStatusText xhr = do
          _ <- jsstringgetutf8cstring'_ j ps (fromIntegral l)
          peekCString ps
   return s
-
-statusTextToText :: Text -> String
-statusTextToText = T.unpack
