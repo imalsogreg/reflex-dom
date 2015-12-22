@@ -216,46 +216,35 @@ dropdown k0 options (DropdownConfig setK attrs) = do
 data ButtonGroup t a
    = ButtonGroup { _buttonGroup_value :: Dynamic t (Maybe a)
                  , _buttonGroup_change :: Event t (Maybe a)
-                 , _buttonGroup_element :: El t
-                 , _buttonGroup_children :: Dynamic t (Map Int (El t))
+                 , _buttonGroup_elements :: Dynamic t (Map Int (El t))
                  }
 
 data ButtonGroupConfig t a
-   = ButtonGroupConfig { _buttonGroupConfig_parentType :: String
-                       , _buttonGroupConfig_parentTag :: String
-                       , _buttonGroupConfig_initialValue :: Maybe a
+   = ButtonGroupConfig { _buttonGroupConfig_initialValue :: Maybe a
                        , _buttonGroupConfig_setValue :: Event t (Maybe a)
                        , _buttonGroupConfig_attributes :: Dynamic t (Map String String)
                        }
 
 instance Reflex t => Default (ButtonGroupConfig t a) where
-  def = ButtonGroupConfig { _buttonGroupConfig_parentType = ""
-                          , _buttonGroupConfig_parentTag = "div"
-                          , _buttonGroupConfig_initialValue = Nothing
+  def = ButtonGroupConfig { _buttonGroupConfig_initialValue = Nothing
                           , _buttonGroupConfig_setValue = never
                           , _buttonGroupConfig_attributes = constDyn mempty
                           }
 
 buttonGroup :: (MonadWidget t m, Eq a) => (Maybe Int -> Dynamic t a -> Dynamic t Bool -> m (Event t (), El t)) -> Dynamic t (Map Int a) -> ButtonGroupConfig t a -> m (ButtonGroup t a)
-buttonGroup drawBtn dynBtns (ButtonGroupConfig pType pTag iVal setV dAtts) = do
-  dAtts' <- mapDyn (Map.insert "type" pType) dAtts
-  (parent, (dynV, internV, child)) <- elDynAttr' pTag dAtts' $ mdo
-    pb <- getPostBuild
-    let externSet = attachWith revLookup (current dynBtns) setV
-        initSet   = attachWith revLookup (current dynBtns) (iVal <$ pb)
-        internSet = leftmost [initSet, clickSelEvts]
-        internVal = attachWith (\m k -> k >>= flip Map.lookup m)
-                              (current dynBtns)
-                              internSet
-    dynK     <- holdDyn Nothing $ leftmost [internSet, externSet]
-    dynBtns' <- mapDyn (Map.mapKeys Just) dynBtns
-    (clickSelEvts, children) <- selectViewListWithKey_' dynK dynBtns' drawBtn
-    dynSelV <- combineDyn (\k m -> k >>= flip Map.lookup m) dynK dynBtns
-    return (dynSelV, internVal, children)
-  return (ButtonGroup { _buttonGroup_value = dynV
-                      , _buttonGroup_change = internV
-                      , _buttonGroup_element = parent
-                      , _buttonGroup_children = child
+buttonGroup drawBtn dynBtns (ButtonGroupConfig iVal setV dAtts) = mdo
+  pb <- getPostBuild
+  let externSet = attachWith revLookup (current dynBtns) setV
+      initSet   = attachWith revLookup (current dynBtns) (iVal <$ pb)
+      internSet = leftmost [initSet, clickSelEvts]
+      internVal = attachWith (\m k -> k >>= flip Map.lookup m) (current dynBtns) internSet
+  dynK     <- holdDyn Nothing $ leftmost [internSet, externSet]
+  dynBtns' <- mapDyn (Map.mapKeys Just) dynBtns
+  (clickSelEvts, children) <- selectViewListWithKey_' dynK dynBtns' drawBtn
+  dynSelV <- combineDyn (\k m -> k >>= flip Map.lookup m) dynK dynBtns
+  return (ButtonGroup { _buttonGroup_value = dynSelV
+                      , _buttonGroup_change = internVal
+                      , _buttonGroup_elements = children
                       })
  
 revLookup :: Eq a => Map Int a -> Maybe a -> Maybe Int
@@ -281,10 +270,7 @@ radioButtons dynName dynElems bgConfig0 = do
   btns <- forDyn dynElems $ \choiceElems ->
     Map.fromList $ zip [1..] (Prelude.map fst choiceElems)
   buttonGroup handleOne btns bgConfig0 
-    {_buttonGroupConfig_parentTag = parentTag}
   where
-    inpPTag   = _buttonGroupConfig_parentTag bgConfig0
-    parentTag = if Prelude.null inpPTag then "table" else inpPTag
     handleOne _ dynV dynChecked = do
       (row, clicks) <- el' "tr" $ do
         txt <- combineDyn (\v m -> fromMaybe "" $ Prelude.lookup v m) dynV dynElems
