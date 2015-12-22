@@ -231,13 +231,16 @@ instance Reflex t => Default (ButtonGroupConfig t k a) where
                           , _buttonGroupConfig_attributes = constDyn mempty
                           }
 
-buttonGroup :: (MonadWidget t m, Ord k, Eq a) => (Maybe k -> Dynamic t a -> Dynamic t Bool -> m (Event t (), El t)) -> Dynamic t (Map k a) -> ButtonGroupConfig t k a -> m (ButtonGroup t k a)
+buttonGroup :: (MonadWidget t m, Ord k, Eq a, Ord a) => (Maybe k -> Dynamic t a -> Dynamic t Bool -> m (Event t (), El t)) -> Dynamic t (Map k a) -> ButtonGroupConfig t k a -> m (ButtonGroup t k a)
 buttonGroup drawBtn btns (ButtonGroupConfig iVal setV _) = mdo
   pb <- getPostBuild
-  let externSet = attachWith revLookup (current btns) setV
-      initSet   = attachWith revLookup (current btns) (iVal <$ pb)
+  reverseIndex <- forDyn btns $ Map.fromList . fmap (\(a,b) -> (b,a)) . Map.toList
+  let lookup' :: Ord k => Map k a -> Maybe k -> Maybe a
+      lookup' = (=<<) . (flip Map.lookup)
+      externSet = attachWith lookup' (current reverseIndex) setV
+      initSet   = attachWith lookup' (current reverseIndex) (iVal <$ pb)
       internSet = leftmost [initSet, clickSelEvts]
-      internVal = attachWith (\m -> (=<<) (flip Map.lookup m)) (current btns) internSet
+      internVal = attachWith lookup' (current btns) internSet
       dropNothings = mapKeys fromJust . filterWithKey (const . isJust)
   k     <- holdDyn Nothing $ leftmost [internSet, externSet]
   btns' <- mapDyn (Map.mapKeys Just) btns
@@ -245,14 +248,10 @@ buttonGroup drawBtn btns (ButtonGroupConfig iVal setV _) = mdo
   nonNothingChildren <- mapDyn dropNothings children
   selV <- combineDyn (\k' m -> k' >>= flip Map.lookup m) k btns
   return (ButtonGroup { _buttonGroup_value = selV
-                      , _buttonGroup_change = internVal -- dropNothings <$> internVal
+                      , _buttonGroup_change = internVal
                       , _buttonGroup_elements = nonNothingChildren
                       })
  
-revLookup :: (Eq a, Ord k) => Map k a -> Maybe a -> Maybe k
-revLookup _ Nothing = Nothing
-revLookup m (Just v) = listToMaybe . Map.keys $ Map.filter (== v) m
-
 selectViewListWithKey_' :: forall t m k a v.(MonadWidget t m, Ord k) => Dynamic t k -> Dynamic t (Map k v) -> (k -> Dynamic t v -> Dynamic t Bool -> m (Event t a, El t)) -> m (Event t k, Dynamic t (Map k (El t)))
 selectViewListWithKey_' selection vals mkChild = do
   let selectionDemux = demux selection
