@@ -265,8 +265,10 @@ selectViewListWithKey_' selection vals mkChild = do
   selEvents <- liftM switchPromptlyDyn $ mapDyn (leftmost . Map.elems) selectChild
   return (selEvents, els)
 
-radioButtons :: (MonadWidget t m, Eq a, Ord a) => Dynamic t String -> Dynamic t [(a, String)] -> ButtonGroupConfig t a -> m (ButtonGroup t a)
-radioButtons dynName dynElems bgConfig0 = do
+radioButtons :: (MonadWidget t m, Eq a, Ord a) 
+             => String -- ^ The 'name' attribute for all buttons in this group. NOTE: For the page to properly render which input is selected, this  must be unique for each @radioButtons@ widget, or the @radioButton@'s must be under different 'form' tags
+             -> Dynamic t [(a, String)] -> ButtonGroupConfig t a -> m (ButtonGroup t a)
+radioButtons name dynElems bgConfig0 = do
   choices' <- mapDyn Map.fromList dynElems
   btns <- forDyn dynElems $ \choiceElems ->
     Map.fromList $ zip [1..] (Prelude.map fst choiceElems)
@@ -275,9 +277,8 @@ radioButtons dynName dynElems bgConfig0 = do
     handleOne namedChoices _ dynV dynChecked = do
       (row, clicks) <- el' "tr" $ do
         txt <- combineDyn (\v m -> fromMaybe "" $ Map.lookup v m) dynV namedChoices
-        let aux nm chk = "type" =: "radio" <> "name" =: nm 
-                      <> bool mempty ("checked" =: "checked") chk
-        btnAttrs <- combineDyn aux dynName dynChecked
+        btnAttrs <- forDyn dynChecked $ \b ->
+          "type" =: "radio" <> "name" =: name <> bool mempty ("checked" =: "true") b
         (b,_) <- el "td" $ elDynAttr' "input" btnAttrs $ return ()
         el "td" $ dynText txt
         let e = castToHTMLInputElement $ _el_element b
