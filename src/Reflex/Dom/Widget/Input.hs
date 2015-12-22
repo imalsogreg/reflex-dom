@@ -232,19 +232,19 @@ instance Reflex t => Default (ButtonGroupConfig t k a) where
                           }
 
 buttonGroup :: (MonadWidget t m, Ord k, Eq a) => (Maybe k -> Dynamic t a -> Dynamic t Bool -> m (Event t (), El t)) -> Dynamic t (Map k a) -> ButtonGroupConfig t k a -> m (ButtonGroup t k a)
-buttonGroup drawBtn dynBtns (ButtonGroupConfig iVal setV dAtts) = mdo
+buttonGroup drawBtn btns (ButtonGroupConfig iVal setV _) = mdo
   pb <- getPostBuild
-  let externSet = attachWith revLookup (current dynBtns) setV
-      initSet   = attachWith revLookup (current dynBtns) (iVal <$ pb)
+  let externSet = attachWith revLookup (current btns) setV
+      initSet   = attachWith revLookup (current btns) (iVal <$ pb)
       internSet = leftmost [initSet, clickSelEvts]
-      internVal = attachWith (\m k -> k >>= flip Map.lookup m) (current dynBtns) internSet
+      internVal = attachWith (\m k -> k >>= flip Map.lookup m) (current btns) internSet
       dropNothings = mapKeys fromJust . filterWithKey (const . isJust)
-  dynK     <- holdDyn Nothing $ leftmost [internSet, externSet]
-  dynBtns' <- mapDyn (Map.mapKeys Just) dynBtns
-  (clickSelEvts, children) <- selectViewListWithKey_' dynK dynBtns' drawBtn
+  k     <- holdDyn Nothing $ leftmost [internSet, externSet]
+  btns' <- mapDyn (Map.mapKeys Just) btns
+  (clickSelEvts, children) <- selectViewListWithKey_' k btns' drawBtn
   nonNothingChildren <- mapDyn dropNothings children
-  dynSelV <- combineDyn (\k m -> k >>= flip Map.lookup m) dynK dynBtns
-  return (ButtonGroup { _buttonGroup_value = dynSelV
+  selV <- combineDyn (\k m -> k >>= flip Map.lookup m) k btns
+  return (ButtonGroup { _buttonGroup_value = selV
                       , _buttonGroup_change = internVal -- dropNothings <$> internVal
                       , _buttonGroup_elements = nonNothingChildren
                       })
@@ -268,11 +268,11 @@ selectViewListWithKey_' selection vals mkChild = do
 radioButtons :: (MonadWidget t m, Eq a, Ord a) 
              => String -- ^ The 'name' attribute for all buttons in this group. NOTE: For the page to properly render which input is selected, this  must be unique for each @radioButtons@ widget, or the @radioButton@'s must be under different 'form' tags
              -> Dynamic t [(a, String)] -> ButtonGroupConfig t Int a -> m (ButtonGroup t Int a)
-radioButtons name dynElems bgConfig0 = do
-  choices' <- mapDyn Map.fromList dynElems
-  btns <- forDyn dynElems $ \choiceElems ->
+radioButtons name choices cfg = do
+  choices' <- mapDyn Map.fromList choices
+  btns <- forDyn choices $ \choiceElems ->
     Map.fromList $ zip [1 :: Int ..] (Prelude.map fst choiceElems)
-  buttonGroup (handleOne choices') btns bgConfig0 
+  buttonGroup (handleOne choices') btns cfg 
   where
     handleOne namedChoices _ dynV dynChecked = do
       (row, clicks) <- el' "tr" $ do
