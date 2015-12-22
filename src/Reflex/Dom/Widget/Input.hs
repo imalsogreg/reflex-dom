@@ -279,10 +279,10 @@ radioButtons dynName dynElems bgConfig0 = do
                       <> bool mempty ("checked" =: "checked") chk
         btnAttrs <- combineDyn aux dynName dynChecked
         (b,_) <- el "td" $ elDynAttr' "input" btnAttrs $ return ()
-        _     <- el "td" $ dynText txt
-        let e = castToHTMLInputElement (_el_element b)
-        performEvent ((\b -> liftIO (htmlInputElementSetChecked e b)) <$> updated dynChecked)
-        return (domEvent Click b)
+        el "td" $ dynText txt
+        let e = castToHTMLInputElement $ _el_element b
+        performEvent $ (liftIO . htmlInputElementSetChecked e) <$> updated dynChecked
+        return $ domEvent Click b
       return (clicks, row)
 
 liftM concat $ mapM makeLenses
