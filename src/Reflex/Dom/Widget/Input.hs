@@ -237,13 +237,13 @@ buttonGroup drawBtn btns (ButtonGroupConfig iVal setV _) = mdo
   let externSet = attachWith revLookup (current btns) setV
       initSet   = attachWith revLookup (current btns) (iVal <$ pb)
       internSet = leftmost [initSet, clickSelEvts]
-      internVal = attachWith (\m k -> k >>= flip Map.lookup m) (current btns) internSet
+      internVal = attachWith (\m -> (=<<) (flip Map.lookup m)) (current btns) internSet
       dropNothings = mapKeys fromJust . filterWithKey (const . isJust)
   k     <- holdDyn Nothing $ leftmost [internSet, externSet]
   btns' <- mapDyn (Map.mapKeys Just) btns
   (clickSelEvts, children) <- selectViewListWithKey_' k btns' drawBtn
   nonNothingChildren <- mapDyn dropNothings children
-  selV <- combineDyn (\k m -> k >>= flip Map.lookup m) k btns
+  selV <- combineDyn (\k' m -> k' >>= flip Map.lookup m) k btns
   return (ButtonGroup { _buttonGroup_value = selV
                       , _buttonGroup_change = internVal -- dropNothings <$> internVal
                       , _buttonGroup_elements = nonNothingChildren
@@ -274,15 +274,15 @@ radioButtons name choices cfg = do
     Map.fromList $ zip [1 :: Int ..] (Prelude.map fst choiceElems)
   buttonGroup (handleOne choices') btns cfg 
   where
-    handleOne namedChoices _ dynV dynChecked = do
+    handleOne namedChoices _ v checked = do
       (row, clicks) <- el' "tr" $ do
-        txt <- combineDyn (\v m -> fromMaybe "" $ Map.lookup v m) dynV namedChoices
-        btnAttrs <- forDyn dynChecked $ \b ->
+        txt <- combineDyn (\v' m -> fromMaybe "" $ Map.lookup v' m) v namedChoices
+        btnAttrs <- forDyn checked $ \b ->
           "type" =: "radio" <> "name" =: name <> bool mempty ("checked" =: "true") b
         (b,_) <- el "td" $ elDynAttr' "input" btnAttrs $ return ()
         el "td" $ dynText txt
         let e = castToHTMLInputElement $ _el_element b
-        performEvent $ (liftIO . htmlInputElementSetChecked e) <$> updated dynChecked
+        _ <- performEvent $ (liftIO . htmlInputElementSetChecked e) <$> updated checked
         return $ domEvent Click b
       return (clicks, row)
 
