@@ -239,12 +239,12 @@ buttonGroup drawBtn btns (ButtonGroupConfig iVal setV _) = mdo
       lookup' = (=<<) . (flip Map.lookup)
       externSet = attachWith lookup' (current reverseIndex) setV
       initSet   = attachWith lookup' (current reverseIndex) (iVal <$ pb)
-      internSet = leftmost [initSet, clickSelEvts]
+      internSet = leftmost [initSet, fmap fst clickSelEvts]
       internVal = attachWith lookup' (current btns) internSet
       dropNothings = mapKeys fromJust . filterWithKey (const . isJust)
   k     <- holdDyn Nothing $ leftmost [internSet, externSet]
   btns' <- mapDyn (Map.mapKeys Just) btns
-  (clickSelEvts, children) <- selectViewListWithKey_' k btns' drawBtn
+  (clickSelEvts, children) <- selectViewListWithKey' k btns' drawBtn
   nonNothingChildren <- mapDyn dropNothings children
   selV <- combineDyn (\k' m -> k' >>= flip Map.lookup m) k btns
   return (ButtonGroup { _buttonGroup_value = selV
@@ -252,18 +252,6 @@ buttonGroup drawBtn btns (ButtonGroupConfig iVal setV _) = mdo
                       , _buttonGroup_elements = nonNothingChildren
                       })
  
-selectViewListWithKey_' :: forall t m k a v.(MonadWidget t m, Ord k) => Dynamic t k -> Dynamic t (Map k v) -> (k -> Dynamic t v -> Dynamic t Bool -> m (Event t a, El t)) -> m (Event t k, Dynamic t (Map k (El t)))
-selectViewListWithKey_' selection vals mkChild = do
-  let selectionDemux = demux selection
-  selectChildAndEl <- listWithKey vals $ \k v -> do
-    selected <- getDemuxed selectionDemux k
-    (selectSelf, selfEl) <- mkChild k v selected
-    return $ (fmap (const k) selectSelf, selfEl)
-  selectChild <- mapDyn (Map.map fst) selectChildAndEl
-  els <- mapDyn (Map.map snd) selectChildAndEl
-  selEvents <- liftM switchPromptlyDyn $ mapDyn (leftmost . Map.elems) selectChild
-  return (selEvents, els)
-
 radioButtons :: (MonadWidget t m, Eq a, Ord a) 
              => String -- ^ The 'name' attribute for all buttons in this group. NOTE: For the page to properly render which input is selected, this  must be unique for each @radioButtons@ widget, or the @radioButton@'s must be under different 'form' tags
              -> Dynamic t [(a, String)] -> ButtonGroupConfig t Int a -> m (ButtonGroup t Int a)
