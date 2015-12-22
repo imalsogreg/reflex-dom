@@ -265,15 +265,16 @@ selectViewListWithKey_' selection vals mkChild = do
   selEvents <- liftM switchPromptlyDyn $ mapDyn (leftmost . Map.elems) selectChild
   return (selEvents, els)
 
-radioButtons :: (MonadWidget t m, Eq a) => Dynamic t String -> Dynamic t [(a, String)] -> ButtonGroupConfig t a -> m (ButtonGroup t a)
+radioButtons :: (MonadWidget t m, Eq a, Ord a) => Dynamic t String -> Dynamic t [(a, String)] -> ButtonGroupConfig t a -> m (ButtonGroup t a)
 radioButtons dynName dynElems bgConfig0 = do
+  choices' <- mapDyn Map.fromList dynElems
   btns <- forDyn dynElems $ \choiceElems ->
     Map.fromList $ zip [1..] (Prelude.map fst choiceElems)
-  buttonGroup handleOne btns bgConfig0 
+  buttonGroup (handleOne choices') btns bgConfig0 
   where
-    handleOne _ dynV dynChecked = do
+    handleOne namedChoices _ dynV dynChecked = do
       (row, clicks) <- el' "tr" $ do
-        txt <- combineDyn (\v m -> fromMaybe "" $ Prelude.lookup v m) dynV dynElems
+        txt <- combineDyn (\v m -> fromMaybe "" $ Map.lookup v m) dynV namedChoices
         let aux nm chk = "type" =: "radio" <> "name" =: nm 
                       <> bool mempty ("checked" =: "checked") chk
         btnAttrs <- combineDyn aux dynName dynChecked
